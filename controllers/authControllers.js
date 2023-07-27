@@ -14,9 +14,9 @@ const {
 
 const registerUser = async (req, res) => {
 
-    const {email, name, password, role} = req.body
+    const {user_type, username, email, password} = req.body
     // If user has not provided any input
-    if(!name || !email || !password || !role ) {
+    if(!username || !email || !password || !user_type ) {
         throw new CustomError.BadRequestError('Please provider all user details.')
     }
     const emailAlreadyExists = await User.findUserByEmail({email})
@@ -31,7 +31,7 @@ const registerUser = async (req, res) => {
     // token will only be valid for fifteen minutes
     const fifteenMinutes = 1000 * 60 * 15
     const verificationTokenExpirationDate = new Date(Date.now() + fifteenMinutes)
-    const user = new User({name, email, password: hashPassword, role, verificationToken: hashToken, verificationTokenExpirationDate})
+    const user = new User({username, email, password: hashPassword, userType: user_type, verificationToken: hashToken, verificationTokenExpirationDate})
     
     await user.save()
     const message = 
@@ -40,7 +40,7 @@ const registerUser = async (req, res) => {
     `
     // While sending token in email, we do not send the hashed token
     await sendCustomMessageEmail({
-        name: user.name,
+        name: user.username,
         email: user.email,
         message,
         subject: 'Email Verification'
@@ -79,10 +79,10 @@ const verifyEmail = async (req, res) => {
     }
     await User.confirmEmailVerification({email})
     await sendCustomMessageEmail({
-         name: user.name,
+         name: user.username,
         email: user.email,
         message: `<p>Congratulations!! Your account has been verified successfully.</p>`,
-        subject: 'Welcome to Kushal App'
+        subject: 'Welcome to C Talent App'
     })
     res.status(StatusCodes.OK).json({status: 'Success', msg: 'Email is verified successfully.'})
 }
@@ -114,7 +114,7 @@ const resendVerificationToken = async (req, res) => {
     `
     // While sending token in email, we do not send the hashed token
     await sendCustomMessageEmail({
-        name: user.name,
+        name: user.username,
         email: user.email,
         message,
         subject: 'Email Verification'
@@ -140,7 +140,8 @@ const login = async (req, res) => {
     }
 
     // tokenUser object will be stored in jwt payload
-    const tokenUser = createTokenUser({name: user.name, userId: user.id, role: user.role})
+    const tokenUser = createTokenUser({username: user.username, userId: user.id, userType: user.user_type})
+    console.log(tokenUser);
     // GENERATE ACCESS JWT AND REFRESH JWT
 
     const accessJWT = createJWT({payload: {user: tokenUser}, tokenType: TokenType.ACCESSTOKEN})
@@ -178,7 +179,7 @@ const forgotPassword = async (req, res) => {
         <h2>${verificationToken}</h2>
         `
         await sendCustomMessageEmail({
-            name: user.name,
+            name: user.username,
             email: user.email,
             message,
             subject: 'Reset Password'
@@ -251,26 +252,29 @@ const resetPassword = async (req, res) => {
     const hashPassword = await generateHashPassword({password})
     await User.resetPassword({email, hashPassword})
     await sendCustomMessageEmail({
-        name: user.name, 
+        name: user.username, 
         email: user.email, 
         subject: 'Reset Password', 
-        message: `<p>Your password is reset successfully.</p>`})
+        message: `<p>Your password has been reset successfully.</p>`})
     res.status(StatusCodes.OK).json({status: "Success", msg: "Password is reset successfully."})
   }
 
 const generateNewAccessToken = async (req, res) => {
     // IF REFRESH TOKEN IS VALID, WE WILL GET USERID FROM refreshTokenVerification MIDDLEWARE
     const userId = req.user.userId
+    const tokenId = req.tokenId;
     
     const user = await User.findUserById({userId})
     if(!user) {
         throw new CustomError.UnauthenticatedError('Authentication invalid.')
     }
-    const tokenUser = createTokenUser({name: user.name, userId: user.id, role: user.role})
+    const tokenUser = createTokenUser({username: user.username, userId: user.id, userType: user.user_type})
+    
     // GENERATE NEW ACCESS JWT 
     const accessJWT = createJWT({payload: {user: tokenUser}, tokenType: TokenType.ACCESSTOKEN})
     const access_token = createHash(accessJWT)
-    await Token.updateNewAccessToken({access_token, userId})
+
+    await Token.updateNewAccessToken({access_token, userId, tokenId})
     res.status(StatusCodes.OK).json({status: "Success", accessToken: accessJWT})
 }
 

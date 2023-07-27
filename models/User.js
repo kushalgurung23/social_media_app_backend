@@ -3,11 +3,11 @@ const { use } = require('../routes/postRoutes')
 const getCurrentDateTime = require('../utils/current_date_time')
 
 class User {
-    constructor({name, email, password, role, verificationToken, verificationTokenExpirationDate}) {
-        this.name = name,
+    constructor({username, email, password, userType, verificationToken, verificationTokenExpirationDate}) {
+        this.username = username,
         this.email = email,
         this.password = password,
-        this.role = role,
+        this.userType = userType,
         this.verificationToken = verificationToken,
         this.verificationTokenExpirationDate = verificationTokenExpirationDate
     }
@@ -15,10 +15,10 @@ class User {
     async save() {
         const dateTime = getCurrentDateTime()
         const sql = `INSERT INTO users(
-            name,
+            username,
             email, 
             password,
-            role,
+            user_type,
             verification_token,
             created_at,
             updated_at,
@@ -26,7 +26,7 @@ class User {
             verification_token_expiration_date
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        await db.execute(sql, [this.name, this.email, this.password, this.role, this.verificationToken, dateTime, dateTime, true, this.verificationTokenExpirationDate]
+        await db.execute(sql, [this.username, this.email, this.password, this.userType, this.verificationToken, dateTime, dateTime, true, this.verificationTokenExpirationDate]
         )
     }
 

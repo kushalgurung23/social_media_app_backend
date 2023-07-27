@@ -4,7 +4,7 @@ const {
     isTokenValid, createHash
 } = require('../utils');
 
-// ACCESS TOKEN
+// ACCESS TOKEN AUTHENTICATION FOR GETTING ACCESS TO ANY PRIVARE ROUTES
 const authenticateUser = async (req, res, next) => {
     try { 
         // check header and receive accessToken
@@ -64,6 +64,8 @@ const refreshTokenVerification = async (req, res, next) => {
             throw new CustomError.UnauthenticatedError("Authentication invalid.")
         }
         req.user = payload.user
+        // tokenId is sent so that we can update exactly the accessToken whose refreshToken matches with the one sent by user.
+        req.tokenId = token.id
         next()
     } 
     catch (error) {

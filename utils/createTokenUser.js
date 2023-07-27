@@ -1,5 +1,5 @@
-const createTokenUser = ({name, userId, role}) => {
-    return {name, userId, role}
+const createTokenUser = ({username, userId, userType}) => {
+    return {username, userId, userType}
 }
 
 module.exports = createTokenUser

@@ -9,7 +9,7 @@ const sendEmail = async ({to, subject, html}) => {
 
     // Message object
     const message = {
-        from: `APEX ${process.env.SMTP_EMAIL}`,
+        from: `C Talent ${process.env.SMTP_EMAIL}`,
         to, 
         subject, 
         html

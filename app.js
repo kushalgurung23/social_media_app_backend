@@ -5,7 +5,7 @@ const express = require("express");
 const app = express();
 const fileUpload = require('express-fileupload')
 const firebaseAdmin = require('firebase-admin')
-const firebaseServiceAccount = require('./config/push-notification-key.json')
+const firebaseServiceAccount = require('./config/c-talent-firebase-adminsdk.json')
 
 // REQUIRE ROUTES
 const postRouter = require('./routes/postRoutes')

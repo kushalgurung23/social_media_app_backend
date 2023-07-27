@@ -31,11 +31,12 @@ class Token {
             refresh_token,
             user,
             created_at,
-            updated_at
+            updated_at,
+            is_active
         )
-        VALUES (?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?)
         `
-        await db.execute(sql, [access_token, refresh_token, user, dateTime, dateTime])
+        await db.execute(sql, [access_token, refresh_token, user, dateTime, dateTime, true])
     }
 
     static async deleteWithRefreshToken({refresh_token}) {
@@ -46,12 +47,12 @@ class Token {
         await db.execute(sql, [refresh_token])
     }
 
-    static async updateNewAccessToken({access_token, userId}) {
+    static async updateNewAccessToken({access_token, userId, tokenId}) {
         const sql = 
         `
-            UPDATE tokens SET access_token = ?, updated_at = ? WHERE user = ? 
+            UPDATE tokens SET access_token = ?, updated_at = ? WHERE user = ? AND id = ?
         `
-        await db.execute(sql, [access_token, getCurrentDateTime(), userId])
+        await db.execute(sql, [access_token, getCurrentDateTime(), userId, tokenId])
     }
 }
 

@@ -21,7 +21,10 @@ const sendPushNotification = async (req, res) => {
         // IOS
         apns: {
             payload: {
-            content_available: true
+                aps: {
+                    'mutable-content': 1,
+                    'content-available': 1
+                }
             }
         }
     };
