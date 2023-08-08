@@ -54,6 +54,7 @@ class Token {
         `
         await db.execute(sql, [access_token, getCurrentDateTime(), userId, tokenId])
     }
+
 }
 
 module.exports = Token

@@ -14,7 +14,7 @@ const {
 router.route('/').get(getAllPosts).post(createNewPost)
 router.route('/toggle-like').post(togglePostLike)
 router.route('/toggle-save').post(togglePostSave)
-router.route("/:id").get(getPostById).patch(updatePost).delete(deletePost)
 router.route("/image/:id").delete(deletePostImage)
+router.route("/:id").get(getPostById).patch(updatePost).delete(deletePost)
 
 module.exports = router

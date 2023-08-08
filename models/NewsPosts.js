@@ -39,8 +39,8 @@ class NewsPosts {
     static async findAll({offset, limit, search, order_by, userId}) {
         // TOTAL COUNT
         let countSql = `
-        SELECT COUNT(*) AS total_posts FROM posts p
-        INNER JOIN users u on p.created_by = u.id 
+        SELECT COUNT(*) AS total_posts FROM news_posts p
+        INNER JOIN users u on p.posted_by = u.id 
         WHERE p.is_active = ? AND u.is_active = ?`
         let countValues = [true, true]
         if(search) {
@@ -52,67 +52,15 @@ class NewsPosts {
         const totalPostsCount = count[0].total_posts
         
         // COALESCE WILL RETURN EMPTY ARRAY WHEN SUB QUERY RETURNS 0 ROWS
-        let postsSql = `SELECT JSON_OBJECT(
-            'id', p.id,
-            'title', p.title,
-            'body', p.body,
-            'created_at', p.created_at,
-            'updated_at', p.updated_at,
-            'is_active', p.is_active,
-            'rent_type', p.rent_type,
-            'address', p.address,
-            'initial_price', p.initial_price,
-            'monthly_price', p.monthly_price,
-            'number_of_rooms', p.number_of_rooms,
-            'has_wifi', p.has_wifi,
-            'has_bike_parking', p.has_bike_parking,
-            'has_car_parking', p.has_car_parking,
-            'has_hot_water', p.has_hot_water,
-            'has_bathroom', p.has_bathroom,
-            'has_toilet', p.has_toilet,
-            'images', COALESCE(
-                (
-                    SELECT JSON_ARRAYAGG(
-                        JSON_OBJECT(
-                            'id', pi.id,
-                            'url', pi.image
-                        )
-                    )
-                    FROM posts_images pi
-                    WHERE pi.post_id = p.id AND pi.is_active = ?
-                ),
-                JSON_ARRAY()
-            ),
-            'likes_count', (
-                SELECT COUNT(*)
-                FROM posts_likes pl
-                INNER JOIN users u ON pl.liked_by = u.id AND u.is_active = ?
-                WHERE pl.post_id = p.id AND pl.is_active = ?
-            ),
-            'is_liked', (
-                SELECT CASE WHEN EXISTS (
-                    SELECT 1
-                    FROM posts_likes pl
-                    INNER JOIN users u ON pl.liked_by = u.id AND u.is_active = ?
-                    WHERE pl.post_id = p.id AND pl.liked_by = ? AND pl.is_active = ?
-                ) THEN 1 ELSE 0 END
-            ),
-            'created_by', (
-                SELECT JSON_OBJECT(
-                    'id', u.id,
-                    'name', u.name,
-                    'profile_picture', u.profile_picture
-                )
-                FROM users u 
-                WHERE p.created_by = u.id AND u.is_active = ?
-            )
-        ) AS post
-        FROM posts p 
+        let postsSql = this.getPostBaseQuery
+        postsSql+= `
+        ) AS news_post
+        FROM news_posts p 
         INNER JOIN users u ON
-        p.created_by = u.id
+        p.posted_by = u.id
         WHERE p.is_active = ? AND u.is_active = ?`
        
-        let postsValues = [true, true, true, true, !userId ? 0 : userId, true, true, true, true]
+        let postsValues = [true, true, true, true, !userId ? 0 : userId, true, true, !userId ? 0 : userId, true, true, true, true, true, true]
         if(search) {
             postsSql+= ` AND p.title LIKE ?`
             postsValues.push(`%${search}%`)
@@ -145,9 +93,9 @@ class NewsPosts {
 
     static async findById(id) {
         const sql = `
-        SELECT id FROM posts p
+        SELECT p.id FROM news_posts p
         INNER JOIN users u ON
-        p.created_by = u.id
+        p.posted_by = u.id
         WHERE p.is_active = ? 
         AND p.id = ?
         AND u.is_active = ?
@@ -159,74 +107,21 @@ class NewsPosts {
     // WHEN WE WANT TO SEE DETAILS OF ONLY ONE POST
     static async getOnePost({postId, userId}) {
 
-        const sql = `
-        SELECT JSON_OBJECT(
-            'id', p.id,
-            'title', p.title,
-            'body', p.body,
-            'created_at', p.created_at,
-            'updated_at', p.updated_at,
-            'is_active', p.is_active,
-            'rent_type', p.rent_type,
-            'address', p.address,
-            'initial_price', p.initial_price,
-            'monthly_price', p.monthly_price,
-            'number_of_rooms', p.number_of_rooms,
-            'has_wifi', p.has_wifi,
-            'has_bike_parking', p.has_bike_parking,
-            'has_car_parking', p.has_car_parking,
-            'has_hot_water', p.has_hot_water,
-            'has_bathroom', p.has_bathroom,
-            'has_toilet', p.has_toilet,
-            'images', COALESCE(
-                (
-                    SELECT JSON_ARRAYAGG(
-                        JSON_OBJECT(
-                            'id', pi.id,
-                            'url', pi.image
-                        )
-                    )
-                    FROM posts_images pi
-                    WHERE pi.post_id = p.id AND pi.is_active = ?
-                ),
-                JSON_ARRAY()
-            ),
-            'likes_count', (
-                SELECT COUNT(*)
-                FROM posts_likes pl
-                INNER JOIN users u ON pl.liked_by = u.id AND u.is_active = ?
-                WHERE pl.post_id = p.id AND pl.is_active = ?
-            ),
-            'is_liked', (
-                SELECT CASE WHEN EXISTS (
-                    SELECT 1
-                    FROM posts_likes pl
-                    INNER JOIN users u ON pl.liked_by = u.id AND u.is_active = ?
-                    WHERE pl.post_id = p.id AND pl.liked_by = ? AND pl.is_active = ?
-                ) THEN 1 ELSE 0 END
-            ),
-            'created_by', (
-                SELECT JSON_OBJECT(
-                    'id', u.id,
-                    'name', u.name,
-                    'profile_picture', u.profile_picture
-                )
-                FROM users u
-                WHERE u.id = p.created_by AND u.is_active = ?
-            )
-        ) AS result
-        FROM posts p
+        let sql = this.getPostBaseQuery
+        sql+= `
+        ) AS news_post
+        FROM news_posts p
         INNER JOIN users u ON
-        p.created_by = u.id
+        p.posted_by = u.id
         WHERE p.id = ? AND p.is_active = ? AND u.is_active = ?
         `
 
         const [rows, _] = await db.execute(sql, 
-            [true, true, true, true, !userId ? 0 : userId, true, true, postId, true, true])
+            [true, true, true, true, !userId ? 0 : userId, true, true, !userId ? 0 : userId, true, true, true, true, postId, true, true])
         if(rows.length === 0) {
             return false;
         }
-        const post = rows[0].result
+        const post = rows[0].news_post
         return post
     }
 
@@ -234,10 +129,10 @@ class NewsPosts {
      
         const dateTime = getCurrentDateTime()
 
-        let query = 'UPDATE posts SET ';
+        let query = 'UPDATE news_posts SET ';
         let values = [];
         let i = 0;
-      
+       
         for (const field in toBeUpdatedFields) {
             // For first field, we do not wanna add comma in the query
             if (i > 0) {
@@ -251,33 +146,27 @@ class NewsPosts {
         query += ', updated_at = ?'
         query += ' WHERE id = ?';
         query += ' AND is_active = ?';
+        console.log(query);
         values.push(dateTime, postId, true)
         await db.execute(query, values)
         // THE QUERY AND ITS VALUES WILL BE
-        // UPDATE posts SET body = ?, updated_at = ? WHERE id = ? AND is_active = ?
+        // UPDATE news_posts SET body = ?, updated_at = ? WHERE id = ? AND is_active = ?
         // [ 'Good team of England.', '2023-06-16 07:23:01', '15', true ]
     }
 
     // POST's status will be set to in_active
     static async deletePost({postId}) {
-        const dateTime = getCurrentDateTime()
-        const values = [false, dateTime, postId, true]
-        // REMOVE post
-        const postSql = `UPDATE posts SET is_active = ?, updated_at = ? WHERE id = ? AND is_active = ?`
-        await db.execute(postSql, values)
-        
-        // REMOVE post's images
-        const postImageSql = `UPDATE posts_images SET is_active = ?, updated_at = ? WHERE post_id = ? AND is_active = ?`
-        await db.execute(postImageSql, values)
+        const postSql = `DELETE FROM news_posts WHERE id = ?`
+        await db.execute(postSql, [postId])
     }
 
     static async togglePostLike({postId, userId}) {
         const dateTime = getCurrentDateTime()
 
-        const findSql = `SELECT COUNT(*) AS COUNT FROM posts_likes pl
+        const findSql = `SELECT COUNT(*) AS COUNT FROM news_posts_likes pl
         INNER JOIN users u on u.id = pl.liked_by AND u.is_active = ?
         WHERE
-        pl.post_id = ? AND pl.liked_by = ? AND pl.is_active = ?
+        pl.news_post = ? AND pl.liked_by = ? AND pl.is_active = ?
         `
         const [count, _] = await db.execute(findSql, [true, postId, userId, true])
         
@@ -287,9 +176,9 @@ class NewsPosts {
 
             const deleteSql = `
             DELETE pl
-            FROM posts_likes pl 
+            FROM news_posts_likes pl 
             INNER JOIN users u ON pl.liked_by = u.id
-            WHERE pl.post_id = ? 
+            WHERE pl.news_post = ? 
             AND pl.liked_by = ? 
             AND pl.is_active = ?
             AND u.is_active = ?
@@ -301,8 +190,8 @@ class NewsPosts {
         else {  
             const insertSql = 
             `
-            INSERT INTO posts_likes (
-                post_id,
+            INSERT INTO news_posts_likes (
+                news_post,
                 liked_by,
                 created_at,
                 updated_at,
@@ -317,10 +206,10 @@ class NewsPosts {
     static async togglePostSave({postId, userId}) {
         const dateTime = getCurrentDateTime()
 
-        const findSql = `SELECT COUNT(*) AS COUNT FROM posts_saves ps
+        const findSql = `SELECT COUNT(*) AS COUNT FROM news_posts_saves ps
         INNER JOIN users u on u.id = ps.saved_by AND u.is_active = ?
         WHERE
-        ps.post_id = ? AND ps.saved_by = ? AND ps.is_active = ?
+        ps.news_post = ? AND ps.saved_by = ? AND ps.is_active = ?
         `
         const [count, _] = await db.execute(findSql, [true, postId, userId, true])
         
@@ -329,9 +218,9 @@ class NewsPosts {
         if(totalCount === 1 || totalCount >= 1) {
             const deleteSql = `
             DELETE ps
-            FROM posts_saves ps
+            FROM news_posts_saves ps
             INNER JOIN users u ON ps.saved_by = u.id
-            WHERE ps.post_id = ? 
+            WHERE ps.news_post = ? 
             AND ps.saved_by = ?
             AND ps.is_active = ?
             AND u.is_active = ?
@@ -343,8 +232,8 @@ class NewsPosts {
         else {  
             const insertSql = 
             `
-            INSERT INTO posts_saves (
-                post_id,
+            INSERT INTO news_posts_saves (
+                news_post,
                 saved_by,
                 created_at,
                 updated_at,
@@ -355,6 +244,88 @@ class NewsPosts {
             await db.execute(insertSql, [postId, userId, dateTime, dateTime, true])
         }
     }
+
+    static async insertNewsPostComment({userId}) {
+        const dateTime = getCurrentDateTime()
+        const sql = `INSERT INTO news_posts(
+            title,
+            content, 
+            posted_by,
+            created_at,
+            updated_at,
+            is_active
+        )
+        VALUES (?, ?, ?, ?, ?, ?)`
+        
+        await db.execute(sql, [
+            this.title, 
+            this.content, 
+            this.posted_by,
+            dateTime, 
+            dateTime, 
+            true
+        ])
+    }
+
+    static getPostBaseQuery = `
+    SELECT JSON_OBJECT(
+        'id', p.id,
+        'title', p.title,
+        'content', p.content,
+        'created_at', p.created_at,
+        'updated_at', p.updated_at,
+        'is_active', p.is_active,
+        'images', COALESCE(
+            (
+                SELECT JSON_ARRAYAGG(
+                    JSON_OBJECT(
+                        'id', pi.id,
+                        'url', pi.image
+                    )
+                )
+                FROM news_posts_images pi
+                WHERE pi.news_post = p.id AND pi.is_active = ?
+            ),
+            JSON_ARRAY()
+        ),
+        'likes_count', (
+            SELECT COUNT(*)
+            FROM news_posts_likes pl
+            INNER JOIN users u ON pl.liked_by = u.id AND u.is_active = ?
+            WHERE pl.news_post = p.id AND pl.is_active = ?
+        ),
+        'is_liked', (
+            SELECT CASE WHEN EXISTS (
+                SELECT 1
+                FROM news_posts_likes pl
+                INNER JOIN users u ON pl.liked_by = u.id AND u.is_active = ?
+                WHERE pl.news_post = p.id AND pl.liked_by = ? AND pl.is_active = ?
+            ) THEN 1 ELSE 0 END
+        ),
+        'is_saved', (
+            SELECT CASE WHEN EXISTS (
+                SELECT 1
+                FROM news_posts_saves ps
+                INNER JOIN users u ON ps.saved_by = u.id AND u.is_active = ?
+                WHERE ps.news_post = p.id AND ps.saved_by = ? AND ps.is_active = ?
+            ) THEN 1 ELSE 0 END
+        ),
+        'posted_by', (
+            SELECT JSON_OBJECT(
+                'id', u.id,
+                'username', u.username,
+                'profile_picture', u.profile_picture
+            )
+            FROM users u
+            WHERE u.id = p.posted_by AND u.is_active = ?
+        ),
+        'comment_count', (
+            SELECT COUNT(*)
+            FROM news_posts_comments pc
+            INNER JOIN users u ON pc.comment_by = u.id AND u.is_active = ?
+            WHERE pc.news_post = p.id AND pc.is_active = ?
+        )
+    `
 }
 
 module.exports = NewsPosts

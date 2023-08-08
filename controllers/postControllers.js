@@ -1,8 +1,9 @@
-const Post = require('../models/Post')
+const NewsPosts = require('../models/NewsPosts')
 const CustomError = require('../errors/index')
 const {StatusCodes} = require('http-status-codes')
 const {uploadSingleImage, uploadMultipleImages, ImageTypeEnum} = require('../utils/')
-const PostsImages = require('../models/PostsImages')
+const PostsImages = require('../models/NewsPostsImages')
+const NewsPostsComments = require('../models/NewsPostsComments')
 
 const getAllPosts = async (req, res) => {
     const userId = req.user.userId
@@ -12,7 +13,7 @@ const getAllPosts = async (req, res) => {
     const limit = Number(req.query.limit) || 10
     const offset = (page -1) * limit
 
-    const {totalPostsCount, posts} = await Post.findAll({offset, limit, search, order_by, userId})
+    const {totalPostsCount, posts} = await NewsPosts.findAll({offset, limit, search, order_by, userId})
     if(!posts) {
         return res.status(StatusCodes.OK).json({
             status: "Success",
@@ -34,55 +35,31 @@ const createNewPost = async (req, res) => {
     const {userId} = req.user
     const {
         title, 
-        body, 
-        rent_type, 
-        address, 
-        initial_price, 
-        monthly_price, 
-        number_of_rooms, 
-        has_wifi,
-        has_bike_parking,
-        has_car_parking,
-        has_hot_water,
-        has_bathroom,
-        has_toilet
+        content
     } = req.body
 
-    if(!title || !body || !rent_type || !address || !initial_price || !monthly_price || !number_of_rooms || !has_wifi ||
-       !has_bike_parking || !has_car_parking || !has_hot_water || !has_bathroom || !has_toilet) {
+    if(!title || !content) {
         throw new CustomError.BadRequestError('Please provide all details.')
     }
-    const post = new Post({
+    const newsPost = new NewsPosts({
         title, 
-        body, 
-        created_by: userId, 
-        rent_type, 
-        address, 
-        initial_price, 
-        monthly_price, 
-        number_of_rooms, 
-        has_wifi, 
-        has_bike_parking,
-        has_car_parking,
-        has_hot_water,
-        has_bathroom,
-        has_toilet
-
+        content, 
+        posted_by: userId
     })
-    const newPostId = await post.save();
+    const newPostId = await newsPost.save();
     // IF POST ALSO HAS IMAGES
     if(req.files) {
         const imageFiles = req.files.image
         // MULTIPLE IMAGES
         if(imageFiles.length && imageFiles.length > 1) {
-            const allImagesPath = await uploadMultipleImages(req, res, newPostId, ImageTypeEnum.postImage)
+            const allImagesPath = await uploadMultipleImages(req, res, newPostId, ImageTypeEnum.newsPostImage)
             if(allImagesPath) {
                 await PostsImages.addMultiplePostImages({postId: newPostId, allImagesPath})
             }
         }
         // SINGLE IMAGE
         else if(!imageFiles.length) {
-            const imagePath = await uploadSingleImage(req, res, newPostId, ImageTypeEnum.postImage)
+            const imagePath = await uploadSingleImage(req, res, newPostId, ImageTypeEnum.newsPostImage)
             if(imagePath) {
                 await PostsImages.addSinglePostImage({postId: newPostId, imagePath})
             }
@@ -94,7 +71,7 @@ const createNewPost = async (req, res) => {
 
 const getPostById = async (req, res) => {
     const {id:postId} = req.params
-    const post = await Post.getOnePost({postId, userId: req.user.userId})
+    const post = await NewsPosts.getOnePost({postId, userId: req.user.userId})
     if(!post) {
       throw new CustomError.NotFoundError(`Post of id: ${postId} is not available.`)
     }
@@ -103,15 +80,16 @@ const getPostById = async (req, res) => {
 
 const updatePost = async (req, res) => {
     const {id:postId} = req.params
-  
+    console.log(postId);
+    console.log(req.body);
     if(Object.keys(req.body).length === 0) {
         throw new CustomError.BadRequestError('Post details cannot be empty.')
     }
-    const post = await Post.findById(postId)
+    const post = await NewsPosts.findById(postId)
     if(!post) {
         throw new CustomError.NotFoundError(`Post of id: ${postId} does not exists.`)
     }
-    await Post.updateById({postId, toBeUpdatedFields: req.body})
+    await NewsPosts.updateById({postId, toBeUpdatedFields: req.body})
     res.status(StatusCodes.OK).json({status: "Success", msg: "Post is updated successfully."})
 }
 
@@ -120,12 +98,12 @@ const deletePost = async (req, res) => {
         throw new CustomError.BadRequestError('Provide post id.')
     }
     const {id:postId} = req.params
-    const post = await Post.findById(postId)
+    const post = await NewsPosts.findById(postId)
     
     if(!post || post?.is_active === 0) {
         throw new CustomError.NotFoundError(`Post of id: ${postId} does not exists.`)
     }
-    await Post.deletePost({postId})
+    await NewsPosts.deletePost({postId})
     res.status(StatusCodes.OK).json({status: 'Success', msg: "Post is deleted successfully."})
 }
 
@@ -149,11 +127,11 @@ const togglePostLike = async (req, res) => {
     if(!post_id) {
         throw new CustomError.BadRequestError('Please provide post id.')
     }
-    const post = await Post.findById(post_id)
+    const post = await NewsPosts.findById(post_id)
     if(!post) {
         throw new CustomError.NotFoundError('Please make sure you have provided a correct post id.')
     }
-    await Post.togglePostLike({postId: post_id, userId})
+    await NewsPosts.togglePostLike({postId: post_id, userId})
     res.status(StatusCodes.OK).json({
         status: 'Success',
         msg: 'Successfully toggled the post\'s like status.'
@@ -166,14 +144,31 @@ const togglePostSave = async (req, res) => {
     if(!post_id) {
         throw new CustomError.BadRequestError('Please provide post id.')
     }
-    const post = await Post.findById(post_id)
+    const post = await NewsPosts.findById(post_id)
     if(!post) {
         throw new CustomError.NotFoundError('Please make sure you have provided a correct post id.')
     }
-    await Post.togglePostSave({postId: post_id, userId})
+    await NewsPosts.togglePostSave({postId: post_id, userId})
     res.status(StatusCodes.OK).json({
         status: 'Success',
         msg: 'Successfully toggled the post\'s save status.'
+    })
+}
+
+const newsPostComment = async (req, res) => {
+    const {userId} = req.user
+    const {post_id, comment} = req.body
+    if(!post_id || !comment) {
+        throw new CustomError.BadRequestError('Please provide post id and comment.')
+    }
+    const post = await NewsPosts.findById(post_id)
+    if(!post) {
+        throw new CustomError.NotFoundError('Please make sure you have provided a correct post id.')
+    }
+    await NewsPostsComments.save({newsPost: post_id, comment, commentBy: userId})
+    res.status(StatusCodes.OK).json({
+        status: 'Success',
+        msg: 'Commented successfully.'
     })
 }
 
@@ -185,5 +180,6 @@ module.exports = {
     deletePost,
     deletePostImage,
     togglePostLike,
-    togglePostSave
+    togglePostSave,
+    newsPostComment
 }

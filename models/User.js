@@ -139,9 +139,8 @@ class User {
     }
 
     static async deleteUserAccount({userId}) {
-        const dateTime = getCurrentDateTime()
-        const sql = `UPDATE users SET is_active = ?, updated_at = ? WHERE id = ? AND is_active = ?`
-        await db.execute(sql, [false, dateTime, userId, true])
+        const sql = `DELETE FROM users where id = ?`
+        await db.execute(sql, [userId])
     }
 
 }
