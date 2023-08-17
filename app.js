@@ -12,6 +12,7 @@ const postRouter = require('./routes/postRoutes')
 const authRouter = require('./routes/authRoutes')
 const userRouter = require('./routes/userRoutes')
 const pushNotificationRouter = require('./routes/pushNotificationRoutes')
+const serviceRouter = require('./routes/serviceRoutes')
 
 // REQUIRE MIDDLEWARES
 const errorHandlerMiddleware = require('./middlewares/error-handler')
@@ -29,6 +30,7 @@ app.use('/api/v1/auth', authRouter)
 app.use('/api/v1/posts', authenticateUser, postRouter)
 app.use('/api/v1/users', authenticateUser, userRouter)
 app.use('/api/v1/push-notification', authenticateUser, pushNotificationRouter)
+app.use('/api/v1/services', authenticateUser, serviceRouter)
 
 // MIDDLEWARE
 app.use(notFoundMiddleWare);

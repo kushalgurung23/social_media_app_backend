@@ -51,16 +51,46 @@ class NewsPosts {
         const [count, countField] = await db.execute(countSql, countValues)
         const totalPostsCount = count[0].total_posts
         
-        // COALESCE WILL RETURN EMPTY ARRAY WHEN SUB QUERY RETURNS 0 ROWS
         let postsSql = this.getPostBaseQuery
-        postsSql+= `
+        postsSql+= 
+        `
+            ,'comments', (
+                SELECT JSON_ARRAYAGG(
+                    JSON_OBJECT(
+                        'id', c.id,
+                        'comment', c.comment,
+                        'created_at', c.created_at,
+                        'updated_at', c.updated_at,
+                        'comment_by', (
+                            SELECT JSON_OBJECT (
+                                'id', u.id,
+                                'username', u.username,
+                                'profile_picture', u.profile_picture
+                            )
+                            FROM users u
+                            WHERE u.id = c.comment_by AND u.is_active = ?
+                        )
+                    )
+                )
+                FROM (
+                    SELECT 
+                        pc.id, pc.comment, pc.created_at, pc.updated_at, pc.comment_by
+                    FROM news_posts_comments pc
+                    INNER JOIN users u ON pc.comment_by = u.id AND u.is_active = ?
+                    WHERE pc.news_post = p.id AND pc.is_active = ?
+                    ORDER BY pc.updated_at DESC 
+                    LIMIT 2
+                ) AS c 
+                
+            )
         ) AS news_post
-        FROM news_posts p 
-        INNER JOIN users u ON
-        p.posted_by = u.id
-        WHERE p.is_active = ? AND u.is_active = ?`
+                FROM news_posts p 
+                INNER JOIN users u ON
+                p.posted_by = u.id
+            WHERE p.is_active = ? AND u.is_active = ?
+        `
        
-        let postsValues = [true, true, true, true, !userId ? 0 : userId, true, true, !userId ? 0 : userId, true, true, true, true, true, true]
+        let postsValues = [true, true, true, true, !userId ? 0 : userId, true, true, !userId ? 0 : userId, true, true, true, true, true, true, true, true, true]
         if(search) {
             postsSql+= ` AND p.title LIKE ?`
             postsValues.push(`%${search}%`)
@@ -82,7 +112,6 @@ class NewsPosts {
         }
         postsSql+= " LIMIT ? OFFSET ?"
         postsValues.push(limit.toString(), offset.toString())
-        
         const [posts, _] = await db.execute(postsSql, postsValues)
         
         if(posts.length === 0) {
@@ -91,7 +120,7 @@ class NewsPosts {
         return {totalPostsCount, posts}
     }
 
-    static async findById(id) {
+    static async checkById(id) {
         const sql = `
         SELECT p.id FROM news_posts p
         INNER JOIN users u ON
@@ -267,6 +296,7 @@ class NewsPosts {
         ])
     }
 
+    // COALESCE WILL RETURN EMPTY ARRAY WHEN SUB QUERY RETURNS 0 ROWS
     static getPostBaseQuery = `
     SELECT JSON_OBJECT(
         'id', p.id,
@@ -325,6 +355,7 @@ class NewsPosts {
             INNER JOIN users u ON pc.comment_by = u.id AND u.is_active = ?
             WHERE pc.news_post = p.id AND pc.is_active = ?
         )
+        
     `
 }
 
