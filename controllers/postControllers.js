@@ -75,7 +75,7 @@ const getPostById = async (req, res) => {
     if(!post) {
       throw new CustomError.NotFoundError(`Post of id: ${postId} is not available.`)
     }
-    res.status(StatusCodes.OK).json({status: "Success", post: post})
+    res.status(StatusCodes.OK).json({status: "Success", news_post: post})
 }
 
 const updatePost = async (req, res) => {

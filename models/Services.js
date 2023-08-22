@@ -14,7 +14,6 @@ class Services {
             countSql+= ` AND title LIKE ?`
             countValues.push(`%${search}%`)
         }
-       console.log(countValues);
         const [count, countField] = await db.execute(countSql, countValues)
         const totalServicesCount = count[0].total_services
         
@@ -53,6 +52,7 @@ class Services {
         if(services.length === 0) {
             return {totalServicesCount, services:false};
         }
+     
         return {totalServicesCount, services}
     }
 

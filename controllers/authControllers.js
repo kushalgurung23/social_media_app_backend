@@ -9,7 +9,8 @@ const {
     createTokenUser,
     createJWT, 
     TokenType, 
-    sendCustomMessageEmail
+    sendCustomMessageEmail,
+    UserDetails
 } = require('../utils');
 
 const registerUser = async (req, res) => {
@@ -123,11 +124,12 @@ const resendVerificationToken = async (req, res) => {
 }
 
 const login = async (req, res) => {
-    const {email, password} = req.body
-    if (!email || !password) {
-        throw new CustomError.BadRequestError('Please provide email and password.');
+    const {email, password, device_token} = req.body
+    if (!email || !password || !device_token) {
+        throw new CustomError.BadRequestError('Please provide email, password and device_token.');
     }
-    const user = await User.findUserByEmail({email})
+    const user = await User.findUserWithDeviceToken({email, getFrom: UserDetails.fromEmail})
+    
     if(!user) {
         throw new CustomError.UnauthenticatedError('Invalid Credentials.')
     }
@@ -139,9 +141,22 @@ const login = async (req, res) => {
         throw new CustomError.UnauthenticatedError('User is not verified yet. Please verify your email.')
     }
 
+    let isDeviceTokenAlreadyRegistered = false
+    for (let index = 0; index < user.device_token.length; index++) {
+        const oneDeviceToken = user.device_token[index].device_token
+        if(device_token === oneDeviceToken) {
+            isDeviceTokenAlreadyRegistered = true
+            break
+        }
+    }
+    // ONLY IF 
+    if(isDeviceTokenAlreadyRegistered == false) {
+        await User.addNewDeviceToken({userId: user.id, newDeviceToken: device_token})
+        isDeviceTokenAlreadyRegistered = true
+    }
     // tokenUser object will be stored in jwt payload
     const tokenUser = createTokenUser({username: user.username, userId: user.id, userType: user.user_type})
-    console.log(tokenUser);
+    
     // GENERATE ACCESS JWT AND REFRESH JWT
 
     const accessJWT = createJWT({payload: {user: tokenUser}, tokenType: TokenType.ACCESSTOKEN})
@@ -154,12 +169,15 @@ const login = async (req, res) => {
 
     // TOKENS OF USER THAT WERE CREATED 90 days before will be deleted from db
     await Token.deleteAllExpiredTokens({userId: user.id}) 
-
-    res.status(StatusCodes.OK).json({status: "Success", user: tokenUser, accessToken: accessJWT, refreshToken: refreshJWT})
+    console.log(user);
+    res.status(StatusCodes.OK).json({status: "Success", user, accessToken: accessJWT, refreshToken: refreshJWT})
 }
 
 const logout = async (req, res) => {
     // MIDDLEWARE WILL HANDLE THE LOGOUT LOGIC
+    if(req.user) {
+        
+    }
     res.status(StatusCodes.OK).json({status: "Success", msg: 'user is logged out successfully.' });
 };
 

@@ -65,7 +65,8 @@ class NewsPosts {
                             SELECT JSON_OBJECT (
                                 'id', u.id,
                                 'username', u.username,
-                                'profile_picture', u.profile_picture
+                                'profile_picture', u.profile_picture,
+                                'user_type', u.user_type
                             )
                             FROM users u
                             WHERE u.id = c.comment_by AND u.is_active = ?
@@ -90,7 +91,7 @@ class NewsPosts {
             WHERE p.is_active = ? AND u.is_active = ?
         `
        
-        let postsValues = [true, true, true, true, !userId ? 0 : userId, true, true, !userId ? 0 : userId, true, true, true, true, true, true, true, true, true]
+        let postsValues = [true, true, true, true, !userId ? 0 : userId, true, true, !userId ? 0 : userId, true, true, true, true, true, true, true, true, true, true, true, true]
         if(search) {
             postsSql+= ` AND p.title LIKE ?`
             postsValues.push(`%${search}%`)
@@ -146,7 +147,7 @@ class NewsPosts {
         `
 
         const [rows, _] = await db.execute(sql, 
-            [true, true, true, true, !userId ? 0 : userId, true, true, !userId ? 0 : userId, true, true, true, true, postId, true, true])
+            [true, true, true, true, !userId ? 0 : userId, true, true, !userId ? 0 : userId, true, true, true, true, true, true, true, postId, true, true])
         if(rows.length === 0) {
             return false;
         }
@@ -344,7 +345,8 @@ class NewsPosts {
             SELECT JSON_OBJECT(
                 'id', u.id,
                 'username', u.username,
-                'profile_picture', u.profile_picture
+                'profile_picture', u.profile_picture,
+                'user_type', u.user_type
             )
             FROM users u
             WHERE u.id = p.posted_by AND u.is_active = ?
@@ -354,8 +356,35 @@ class NewsPosts {
             FROM news_posts_comments pc
             INNER JOIN users u ON pc.comment_by = u.id AND u.is_active = ?
             WHERE pc.news_post = p.id AND pc.is_active = ?
+        ),
+        'likes', (
+            SELECT JSON_ARRAYAGG(
+                JSON_OBJECT(
+                    'id', li.id,
+                    'created_at', li.created_at,
+                    'updated_at', li.updated_at,
+                    'liked_by', (
+                        SELECT JSON_OBJECT (
+                            'id', u.id,
+                            'username', u.username,
+                            'profile_picture', u.profile_picture,
+                            'user_type', u.user_type
+                        )
+                        FROM users u
+                        WHERE u.id = li.liked_by AND u.is_active = ?
+                    )
+                )
+            )
+            FROM (
+                SELECT 
+                    pl.id, pl.created_at, pl.updated_at, pl.liked_by
+                FROM news_posts_likes pl
+                INNER JOIN users u ON pl.liked_by = u.id AND u.is_active = ?
+                WHERE pl.news_post = p.id AND pl.is_active = ?
+                ORDER BY pl.updated_at DESC 
+                LIMIT 3
+            ) AS li 
         )
-        
     `
 }
 

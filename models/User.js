@@ -1,5 +1,6 @@
 const db = require('../config/db')
-const { use } = require('../routes/postRoutes')
+
+const {UserDetails} = require('../utils')
 const getCurrentDateTime = require('../utils/current_date_time')
 
 class User {
@@ -40,6 +41,57 @@ class User {
         const sql = `SELECT * FROM users WHERE email = ? AND is_active = ?`
         const [user, _] = await db.execute(sql, [email, true])
         return user[0]
+    }
+
+    static async findUserWithDeviceToken({email, userId, getFrom}) {
+        let sql = `SELECT  
+        JSON_OBJECT(
+            'id', u.id,
+            'username', u.username, 
+            'email', u.email, 
+            'password', u.password,
+            'user_type', u.user_type, 
+            'profile_picture', u.profile_picture, 
+            'is_verified', u.is_verified, 
+            'verified_on', u.verified_on, 
+            'created_at', u.created_at, 
+            'updated_at', u.updated_at, 
+            'is_active', u.is_active,
+            'device_token', COALESCE(
+                (
+                    SELECT JSON_ARRAYAGG(
+                        JSON_OBJECT(
+                            'id', dt.id,
+                            'device_token', dt.device_token,
+                            'created_at', dt.created_at,
+                            'updated_at', dt.updated_at,
+                            'is_active', dt.is_active
+                        )
+                    )
+                    FROM user_device_token dt
+                    WHERE u.id = dt.user AND dt.is_active = ?
+                ), JSON_ARRAY()
+            )
+        ) AS user
+        FROM users u WHERE 
+        `
+        let sqlValues = [true]
+        if(getFrom == UserDetails.fromEmail && email) {
+            sql+= 'u.email = ? '
+            sqlValues.push(email)
+        }
+        else if(getFrom == UserDetails.fromId) {
+            sql+= 'u.id = ? '
+            sqlValues.push(userId)
+        }
+        sql+= 'AND u.is_active = ?'
+        sqlValues.push(true)
+        const [user, _] = await db.execute(sql, sqlValues)
+        console.log(user);
+        if(Array.isArray(user) && user.length == 0) {
+            return 0
+        }
+        return user[0].user
     }
 
     // after correct 6 digit is entered by user
@@ -87,12 +139,6 @@ class User {
         await db.execute(sql, [hashPassword, null, null, null, dateTime, email, true])
     }
 
-    static async getMyDetails({userId}) {
-        const sql = `SELECT id, name, email, role, profile_picture, is_verified, verified_on, created_at, updated_at, is_active FROM users WHERE id = ? AND is_active = ?`
-        const [user, _] = await db.execute(sql, [userId, true])
-        return user[0]
-    }
-
     static async editProfilePicture({profilePicture, userId}) {
         const dateTime = getCurrentDateTime()
         const sql = `
@@ -126,7 +172,7 @@ class User {
         
         await db.execute(query, values)
         // THE QUERY AND ITS VALUES WILL BE
-        // UPDATE users SET name = ?, updated_at = ? WHERE id = ? AND is_active = ?
+        // UPDATE users SET username = ?, updated_at = ? WHERE id = ? AND is_active = ?
         // [ 'golden', '2023-06-16 09:35:11', 28, true ]
     }
 
@@ -141,6 +187,27 @@ class User {
     static async deleteUserAccount({userId}) {
         const sql = `DELETE FROM users where id = ?`
         await db.execute(sql, [userId])
+    }
+
+    // if user has successfully logged in with new device, device token will be added because user can login from different devices.
+    static async addNewDeviceToken({userId, newDeviceToken}) { 
+        const dateTime = getCurrentDateTime()
+        const sql = `
+        INSERT INTO user_device_token (
+            device_token,
+            user,
+            created_at,
+            updated_at,
+            is_active
+        )
+        VALUES (?, ?, ?, ?, ?)
+        `
+        await db.execute(sql, [newDeviceToken, userId, dateTime, dateTime, true])
+    }
+
+    static async deleteUserDeviceToken({deviceToken}) {
+        const sql = `DELETE FROM user_device_token where device_token = ?`
+        await db.execute(sql, [deviceToken])
     }
 
 }

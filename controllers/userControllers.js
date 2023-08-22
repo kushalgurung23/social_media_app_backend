@@ -1,7 +1,7 @@
 const User = require('../models/User')
 const CustomError = require('../errors/index')
 const {StatusCodes} = require('http-status-codes')
-const {uploadSingleImage, ImageTypeEnum} = require('../utils')
+const {uploadSingleImage, ImageTypeEnum, UserDetails} = require('../utils')
 
 const editProfilePicture = async (req, res) => {
     const {userId} = req.user
@@ -30,7 +30,16 @@ const editUserDetails = async (req, res) => {
 
 const getMyDetails = async (req, res) => {
     const {userId} = req.user
-    const user = await User.getMyDetails({userId: userId})
+    const user = await User.findUserWithDeviceToken({userId, getFrom: UserDetails.fromId})
+    if(!user) {
+        throw new CustomError.NotFoundError('User not found.')
+    }
+    res.json({status: "Success", user})
+}
+
+const getOtherUserDetails = async (req, res) => {
+    const {id: userId} = req.params
+    const user = await User.findUserWithDeviceToken({userId, getFrom: UserDetails.fromId})
     if(!user) {
         throw new CustomError.NotFoundError('User not found.')
     }
@@ -40,5 +49,6 @@ const getMyDetails = async (req, res) => {
 module.exports = {
     editProfilePicture,
     editUserDetails,
-    getMyDetails
+    getMyDetails,
+    getOtherUserDetails
 }

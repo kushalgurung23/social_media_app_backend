@@ -1,5 +1,6 @@
 const CustomError = require('../errors');
 const Token = require('../models/Token')
+const User = require('../models/User')
 const {
     isTokenValid, createHash
 } = require('../utils');
@@ -75,6 +76,10 @@ const refreshTokenVerification = async (req, res, next) => {
 
 // REFRESH TOKEN IS REQUIRED TO LOG OUT 
 const deleteRefreshTokenAuthentication = async (req, res, next) => {
+    const {device_token} = req.body
+    if(!device_token) {
+        throw new CustomError.BadRequestError('Please provide current device token.')
+    }
     // check header and receive refreshToken
     const authHeader = req.headers.authorization
     if (!authHeader || !authHeader.startsWith('Bearer')) {
@@ -90,7 +95,11 @@ const deleteRefreshTokenAuthentication = async (req, res, next) => {
     // Refresh token that is received from user will be encrypted because the refresh token in db is also encrypted.
     // As a result of that, then only we can check if the refresh token provided by user is equal to refresh token from db
     const refresh_token = createHash(refreshToken)
-    await Token.deleteWithRefreshToken({refresh_token})
+    
+    await Promise.all([
+        Token.deleteWithRefreshToken({refresh_token}),
+        User.deleteUserDeviceToken({deviceToken: device_token}) 
+    ])
     next()
 }
 
