@@ -36,6 +36,8 @@ class NewsPostsComments {
     }
 
     static async getAllPostComments({newsPostId, offset, limit}) {
+        console.log(offset);
+        console.log(limit);
         const countSql = 
         `
             SELECT COUNT(*) AS total_comments FROM news_posts_comments pc
@@ -47,31 +49,37 @@ class NewsPostsComments {
         const totalCommentCount = count[0].total_comments
 
         const commentSql = `  
-        SELECT JSON_ARRAYAGG(
-            JSON_OBJECT(
-                'id', c.id,
-                'comment', c.comment,
-                'created_at', c.created_at,
-                'updated_at', c.updated_at,
-                'comment_by', (
-                    SELECT JSON_OBJECT (
-                        'id', u.id,
-                        'username', u.username,
-                        'profile_picture', u.profile_picture
+        SELECT comments
+        FROM (
+            SELECT JSON_ARRAYAGG(
+                JSON_OBJECT(
+                    'id', c.id,
+                    'comment', c.comment,
+                    'created_at', c.created_at,
+                    'updated_at', c.updated_at,
+                    'comment_by', (
+                        SELECT JSON_OBJECT (
+                            'id', u.id,
+                            'username', u.username,
+                            'profile_picture', u.profile_picture
+                        )
+                        FROM users u
+                        WHERE u.id = c.comment_by AND u.is_active = ?
                     )
-                    FROM users u
-                    WHERE u.id = c.comment_by AND u.is_active = ?
                 )
-            )
-        ) AS comments
-        FROM news_posts_comments c
-        INNER JOIN news_posts n on c.news_post = n.id
-        WHERE c.news_post = ? AND c.is_active = ? AND n.is_active = ?
-        ORDER BY c.updated_at DESC
-        LIMIT ? OFFSET ?
+            ) AS comments
+            FROM (
+                SELECT *
+                FROM news_posts_comments
+                WHERE news_post = ? AND is_active = ?
+                ORDER BY updated_at DESC
+                LIMIT ?
+                OFFSET ?
+            ) AS c
+        ) AS subquery
         
         `
-        const commentValues = [true, !newsPostId ? 0 : newsPostId, true, true, limit.toString(), offset.toString()]
+        const commentValues = [true, !newsPostId ? 0 : newsPostId, true, limit.toString(), offset.toString()]
         const [comments, _] = await db.execute(commentSql, commentValues)
         if(comments.length === 0) {
             return {totalCommentCount, comments: false}

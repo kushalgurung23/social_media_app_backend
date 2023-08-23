@@ -4,6 +4,7 @@ const {StatusCodes} = require('http-status-codes')
 const {uploadSingleImage, uploadMultipleImages, ImageTypeEnum} = require('../utils/')
 const PostsImages = require('../models/NewsPostsImages')
 const NewsPostsComments = require('../models/NewsPostsComments')
+const NewsPostsLikes = require('../models/NewsPostsLike')
 
 const getAllPosts = async (req, res) => {
     const userId = req.user.userId
@@ -27,7 +28,7 @@ const getAllPosts = async (req, res) => {
         count: totalPostsCount, 
         page,
         limit,
-        posts})
+        posts: posts})
 }
 
 const createNewPost = async (req, res) => {
@@ -129,7 +130,7 @@ const togglePostLike = async (req, res) => {
     if(!post) {
         throw new CustomError.NotFoundError('Please make sure you have provided a correct post id.')
     }
-    await NewsPosts.togglePostLike({postId: post_id, userId})
+    await NewsPostsLikes.togglePostLike({postId: post_id, userId})
     res.status(StatusCodes.OK).json({
         status: 'Success',
         msg: 'Successfully toggled the post\'s like status.'
@@ -172,7 +173,7 @@ const newsPostComment = async (req, res) => {
 }
 
 const getAllNewsPostComments = async (req, res) => {
-    const {post_id: newsPostId} = req.body
+    const {id: newsPostId} = req.params
     if(!newsPostId) {
         throw new CustomError.BadRequestError('Please provide post_id.')
     }
@@ -201,6 +202,38 @@ const getAllNewsPostComments = async (req, res) => {
         comments})
 }
 
+const getAllNewsPostLikes = async (req, res) => {
+    console.log(req.user);
+    const {userId: currentUserId} = req.user
+    const {id: newsPostId} = req.params
+    if(!newsPostId) {
+        throw new CustomError.BadRequestError('Please provide post_id.')
+    }
+    const post = await NewsPosts.checkById(newsPostId)
+    if(!post) {
+        throw new CustomError.NotFoundError('Please make sure you have provided a correct post_id.')
+    }
+    const page = Number(req.query.page) || 1
+    const limit = Number(req.query.limit) || 10
+    const offset = (page-1) * limit
+
+    const {totalLikeCount, likes} = await NewsPostsLikes.getAllPostLikes({newsPostId, offset, limit, currentUserId})
+    if(!likes) {
+        return res.status(StatusCodes.OK).json({
+            status: "Success",
+            count: totalLikeCount, 
+            page,
+            limit,
+            likes: []})
+    }
+    res.status(StatusCodes.OK).json({
+        status: "Success",
+        count: totalLikeCount, 
+        page,
+        limit,
+        likes})
+}
+
 module.exports = {
     getAllPosts,
     createNewPost,
@@ -211,5 +244,6 @@ module.exports = {
     togglePostLike,
     togglePostSave,
     newsPostComment,
-    getAllNewsPostComments
+    getAllNewsPostComments,
+    getAllNewsPostLikes
 }
