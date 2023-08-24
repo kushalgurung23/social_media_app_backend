@@ -1,19 +1,21 @@
 const db = require('../config/db')
-const {getCurrentDateTime} = require('../utils')
 
 class NewsPostsComments {
     constructor({
         newsPost, 
         comment,
-        commentBy
+        commentBy,
+        createdAt,
+        updatedAt
     }) {
         this.newsPost = newsPost
-        this.comment = comment,
+        this.comment = comment
         this.commentBy = commentBy
+        this.createdAt = createdAt
+        this.updatedAt = updatedAt
     }
 
     async save() {
-       const dateTime = getCurrentDateTime()
     
         const sql = `INSERT INTO news_posts_comments(
             news_post,
@@ -29,8 +31,8 @@ class NewsPostsComments {
             this.newsPost, 
             this.comment, 
             this.commentBy,
-            dateTime, 
-            dateTime, 
+            this.createdAt,
+            this.updatedAt, 
             true
         ])
     }

@@ -190,49 +190,6 @@ class NewsPosts {
         await db.execute(postSql, [postId])
     }
 
-    static async togglePostLike({postId, userId}) {
-        const dateTime = getCurrentDateTime()
-
-        const findSql = `SELECT COUNT(*) AS COUNT FROM news_posts_likes pl
-        INNER JOIN users u on u.id = pl.liked_by AND u.is_active = ?
-        WHERE
-        pl.news_post = ? AND pl.liked_by = ? AND pl.is_active = ?
-        `
-        const [count, _] = await db.execute(findSql, [true, postId, userId, true])
-        
-        const totalCount = count[0].COUNT;
-        // IF USER HAS ALREADY LIKED THE POST, DELETE THE ROW
-        if(totalCount === 1 || totalCount >= 1) {
-
-            const deleteSql = `
-            DELETE pl
-            FROM news_posts_likes pl 
-            INNER JOIN users u ON pl.liked_by = u.id
-            WHERE pl.news_post = ? 
-            AND pl.liked_by = ? 
-            AND pl.is_active = ?
-            AND u.is_active = ?
-            `
-            await db.execute(deleteSql, [postId, userId, true, true])
-            
-        }
-        // ELSE INSERT THE ROW
-        else {  
-            const insertSql = 
-            `
-            INSERT INTO news_posts_likes (
-                news_post,
-                liked_by,
-                created_at,
-                updated_at,
-                is_active
-            )
-            VALUES (?, ?, ?, ?, ?)
-            `
-            await db.execute(insertSql, [postId, userId, dateTime, dateTime, true])
-        }
-    }
-
     static async togglePostSave({postId, userId}) {
         const dateTime = getCurrentDateTime()
 

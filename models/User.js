@@ -1,7 +1,7 @@
 const db = require('../config/db')
 
 const {UserDetails} = require('../utils')
-const getCurrentDateTime = require('../utils/current_date_time')
+const {getCurrentDateTime} = require('../utils')
 
 class User {
     constructor({username, email, password, userType, verificationToken, verificationTokenExpirationDate}) {

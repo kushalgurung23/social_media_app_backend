@@ -1,7 +1,7 @@
 const NewsPosts = require('../models/NewsPosts')
 const CustomError = require('../errors/index')
 const {StatusCodes} = require('http-status-codes')
-const {uploadSingleImage, uploadMultipleImages, ImageTypeEnum} = require('../utils/')
+const {uploadSingleImage, uploadMultipleImages, ImageTypeEnum, formatUtcTime} = require('../utils/')
 const PostsImages = require('../models/NewsPostsImages')
 const NewsPostsComments = require('../models/NewsPostsComments')
 const NewsPostsLikes = require('../models/NewsPostsLike')
@@ -156,15 +156,23 @@ const togglePostSave = async (req, res) => {
 
 const newsPostComment = async (req, res) => {
     const {userId} = req.user
-    const {post_id, comment} = req.body
-    if(!post_id || !comment) {
-        throw new CustomError.BadRequestError('Please provide post_id and comment.')
+    const {post_id, comment, created_at_utc, updated_at_utc} = req.body
+    if(!post_id || !comment || !created_at_utc || !updated_at_utc) {
+        throw new CustomError.BadRequestError('Please provide post_id, comment, created_at and updated_at.')
     }
     const post = await NewsPosts.checkById(post_id)
     if(!post) {
         throw new CustomError.NotFoundError('Please make sure you have provided a correct post id.')
     }
-    const newsPostsComment = new NewsPostsComments({newsPost: post_id, comment, commentBy: userId})
+    const createdAt = formatUtcTime({utcDate: new Date(created_at_utc)})
+    const updatedAt = formatUtcTime({utcDate: new Date(updated_at_utc)})
+    const newsPostsComment = new NewsPostsComments({
+        newsPost: post_id, 
+        comment, 
+        commentBy: userId,
+        createdAt,
+        updatedAt
+    })
     await newsPostsComment.save()
     res.status(StatusCodes.OK).json({
         status: 'Success',

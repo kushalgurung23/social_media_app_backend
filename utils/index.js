@@ -1,5 +1,5 @@
 const createHash = require('./createHash')
-const getCurrentDateTime = require('./current_date_time')
+const {getCurrentDateTime, formatUtcTime} = require('./current_date_time')
 const sendEmail = require('./sendEmail')
 const {generateHashPassword, compareHashPassword} = require('./hashPassword')
 const createTokenUser = require('./createTokenUser')
@@ -15,6 +15,7 @@ const {ImageTypeEnum, UserDetails} = require('./allEnums')
 module.exports = {
     createHash,
     getCurrentDateTime,
+    formatUtcTime,
     sendEmail,
     generateHashPassword,
     compareHashPassword,
