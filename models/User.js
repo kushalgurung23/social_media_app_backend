@@ -43,7 +43,13 @@ class User {
         return user[0]
     }
 
-    static async findUserWithDeviceToken({email, userId, getFrom}) {
+    static async findUserByUsername({username}) {
+        const sql = `SELECT * FROM users WHERE username = ? AND is_active = ?`
+        const [user, _] = await db.execute(sql, [username, true])
+        return user[0]
+    }
+
+    static async findUserWithDeviceToken({email, userId, getFrom, username}) {
         let sql = `SELECT  
         JSON_OBJECT(
             'id', u.id,
@@ -64,25 +70,30 @@ class User {
                             'id', dt.id,
                             'device_token', dt.device_token,
                             'created_at', dt.created_at,
-                            'updated_at', dt.updated_at,
-                            'is_active', dt.is_active
+                            'updated_at', dt.updated_at
                         )
                     )
                     FROM user_device_token dt
-                    WHERE u.id = dt.user AND dt.is_active = ?
+                    WHERE u.id = dt.user
                 ), JSON_ARRAY()
             )
         ) AS user
         FROM users u WHERE 
         `
-        let sqlValues = [true]
+        let sqlValues = []
         if(getFrom == UserDetails.fromEmail && email) {
+           
             sql+= 'u.email = ? '
             sqlValues.push(email)
         }
-        else if(getFrom == UserDetails.fromId) {
+        else if(getFrom == UserDetails.fromId && userId) {
             sql+= 'u.id = ? '
             sqlValues.push(userId)
+        }
+        else if(getFrom == UserDetails.fromUsername && username) {
+           
+            sql+= 'u.username = ? '
+            sqlValues.push(username)
         }
         sql+= 'AND u.is_active = ?'
         sqlValues.push(true)
@@ -197,12 +208,11 @@ class User {
             device_token,
             user,
             created_at,
-            updated_at,
-            is_active
+            updated_at
         )
-        VALUES (?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?)
         `
-        await db.execute(sql, [newDeviceToken, userId, dateTime, dateTime, true])
+        await db.execute(sql, [newDeviceToken, userId, dateTime, dateTime])
     }
 
     static async deleteUserDeviceToken({deviceToken}) {

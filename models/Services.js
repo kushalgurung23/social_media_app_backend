@@ -7,9 +7,8 @@ class Services {
         // TOTAL COUNT
         let countSql = `
         SELECT COUNT(*) AS total_services
-        FROM services
-        WHERE is_active = ?`
-        let countValues = [true]
+        FROM services`
+        let countValues = []
         if(search) {
             countSql+= ` AND title LIKE ?`
             countValues.push(`%${search}%`)
@@ -21,11 +20,10 @@ class Services {
         getServicesSql+= 
         `
         ) AS service
-                FROM services s 
-            WHERE s.is_active = ?
+                FROM services s
         `
        
-        let servicesValues = [true, true, !userId ? 0 : userId, true, true]
+        let servicesValues = [true, !userId ? 0 : userId]
         if(search) {
             getServicesSql+= ` AND s.title LIKE ?`
             servicesValues.push(`%${search}%`)
@@ -73,10 +71,10 @@ class Services {
         sql+= `
         ) AS service
         FROM services s 
-        WHERE s.id = ? AND s.is_active = ?
+        WHERE s.id = ?
         `
         const [rows, _] = await db.execute(sql, 
-            [true, true, !userId ? 0 : userId, true, serviceId, true])
+            [true, !userId ? 0 : userId, serviceId])
         if(rows.length === 0) {
             return false;
         }
@@ -154,7 +152,7 @@ class Services {
                     )
                 )
                 FROM service_images si
-                WHERE si.service_id = s.id AND si.is_active = ?
+                WHERE si.service_id = s.id
             ),
             JSON_ARRAY()
         ),
@@ -163,7 +161,7 @@ class Services {
                 SELECT 1
                 FROM service_saves ss
                 INNER JOIN users u ON ss.saved_by = u.id AND u.is_active = ?
-                WHERE ss.service_id = s.id AND ss.saved_by = ? AND ss.is_active = ?
+                WHERE ss.service_id = s.id AND ss.saved_by = ? 
             ) THEN 1 ELSE 0 END
         )  
     `

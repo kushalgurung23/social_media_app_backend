@@ -38,11 +38,18 @@ class NewsPosts {
 
     static async findAll({offset, limit, search, order_by, userId}) {
         // TOTAL COUNT
+        // For reported_news_posts, The LEFT JOIN ensures that all rows from the news_posts table 
+        // are included, regardless of whether there is a matching row in the reported_news_posts table.
+        // The WHERE clause filters for rows where the reported_news_posts.news_post field is NULL, 
+        // indicating that there is no report associated with that news post by the specified user.
         let countSql = `
         SELECT COUNT(*) AS total_posts FROM news_posts p
         INNER JOIN users u on p.posted_by = u.id 
-        WHERE p.is_active = ? AND u.is_active = ?`
-        let countValues = [true, true]
+        LEFT JOIN reported_news_posts rnp ON
+        p.id = rnp.news_post AND
+        rnp.reported_by = ?
+        WHERE p.is_active = ? AND u.is_active = ? AND rnp.news_post IS NULL`
+        let countValues = [!userId? 0 : userId, true, true]
         if(search) {
             countSql+= ` AND title LIKE ?`
             countValues.push(`%${search}%`)
@@ -78,7 +85,7 @@ class NewsPosts {
                         pc.id, pc.comment, pc.created_at, pc.updated_at, pc.comment_by
                     FROM news_posts_comments pc
                     INNER JOIN users u ON pc.comment_by = u.id AND u.is_active = ?
-                    WHERE pc.news_post = p.id AND pc.is_active = ?
+                    WHERE pc.news_post = p.id 
                     ORDER BY pc.updated_at DESC 
                     LIMIT 2
                 ) AS c 
@@ -88,10 +95,13 @@ class NewsPosts {
                 FROM news_posts p 
                 INNER JOIN users u ON
                 p.posted_by = u.id
-            WHERE p.is_active = ? AND u.is_active = ?
+                LEFT JOIN reported_news_posts rnp ON
+                p.id = rnp.news_post AND
+                rnp.reported_by = ?
+            WHERE p.is_active = ? AND u.is_active = ? AND rnp.news_post IS NULL
         `
        
-        let postsValues = [true, true, true, true, !userId ? 0 : userId, true, true, !userId ? 0 : userId, true, true, true, true, true, true, true, true, true, true, true, true]
+        let postsValues = [true, true, !userId ? 0 : userId, true, !userId ? 0 : userId, true, true, true, true, true, true,  !userId ? 0 : userId, true, true]
         if(search) {
             postsSql+= ` AND p.title LIKE ?`
             postsValues.push(`%${search}%`)
@@ -143,11 +153,14 @@ class NewsPosts {
         FROM news_posts p
         INNER JOIN users u ON
         p.posted_by = u.id
-        WHERE p.id = ? AND p.is_active = ? AND u.is_active = ?
+        LEFT JOIN reported_news_posts rnp ON
+        p.id = rnp.news_post AND
+        rnp.reported_by = ?
+        WHERE p.id = ? AND p.is_active = ? AND u.is_active = ? AND rnp.news_post IS NULL
         `
 
         const [rows, _] = await db.execute(sql, 
-            [true, true, true, true, !userId ? 0 : userId, true, true, !userId ? 0 : userId, true, true, true, true, true, true, true, postId, true, true])
+            [true, true, !userId ? 0 : userId, true, !userId ? 0 : userId, true, true, true, true, !userId ? 0 : userId, postId, true, true])
         if(rows.length === 0) {
             return false;
         }
@@ -196,9 +209,9 @@ class NewsPosts {
         const findSql = `SELECT COUNT(*) AS COUNT FROM news_posts_saves ps
         INNER JOIN users u on u.id = ps.saved_by AND u.is_active = ?
         WHERE
-        ps.news_post = ? AND ps.saved_by = ? AND ps.is_active = ?
+        ps.news_post = ? AND ps.saved_by = ?
         `
-        const [count, _] = await db.execute(findSql, [true, postId, userId, true])
+        const [count, _] = await db.execute(findSql, [true, postId, userId])
         
         const totalCount = count[0].COUNT;
         // IF USER HAS ALREADY SAVED THE POST, DELETE THE ROW
@@ -209,10 +222,9 @@ class NewsPosts {
             INNER JOIN users u ON ps.saved_by = u.id
             WHERE ps.news_post = ? 
             AND ps.saved_by = ?
-            AND ps.is_active = ?
             AND u.is_active = ?
             `
-            await db.execute(deleteSql, [postId, userId, true, true])
+            await db.execute(deleteSql, [postId, userId, true])
             
         }
         // ELSE INSERT THE ROW
@@ -223,12 +235,12 @@ class NewsPosts {
                 news_post,
                 saved_by,
                 created_at,
-                updated_at,
-                is_active
+                updated_at
+               
             )
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?)
             `
-            await db.execute(insertSql, [postId, userId, dateTime, dateTime, true])
+            await db.execute(insertSql, [postId, userId, dateTime, dateTime])
         }
     }
 
@@ -239,18 +251,16 @@ class NewsPosts {
             content, 
             posted_by,
             created_at,
-            updated_at,
-            is_active
+            updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?)`
+        VALUES (?, ?, ?, ?, ?)`
         
         await db.execute(sql, [
             this.title, 
             this.content, 
             this.posted_by,
             dateTime, 
-            dateTime, 
-            true
+            dateTime
         ])
     }
 
@@ -272,7 +282,7 @@ class NewsPosts {
                     )
                 )
                 FROM news_posts_images pi
-                WHERE pi.news_post = p.id AND pi.is_active = ?
+                WHERE pi.news_post = p.id
             ),
             JSON_ARRAY()
         ),
@@ -280,14 +290,14 @@ class NewsPosts {
             SELECT COUNT(*)
             FROM news_posts_likes pl
             INNER JOIN users u ON pl.liked_by = u.id AND u.is_active = ?
-            WHERE pl.news_post = p.id AND pl.is_active = ?
+            WHERE pl.news_post = p.id
         ),
         'is_liked', (
             SELECT CASE WHEN EXISTS (
                 SELECT 1
                 FROM news_posts_likes pl
                 INNER JOIN users u ON pl.liked_by = u.id AND u.is_active = ?
-                WHERE pl.news_post = p.id AND pl.liked_by = ? AND pl.is_active = ?
+                WHERE pl.news_post = p.id AND pl.liked_by = ? 
             ) THEN 1 ELSE 0 END
         ),
         'is_saved', (
@@ -295,7 +305,7 @@ class NewsPosts {
                 SELECT 1
                 FROM news_posts_saves ps
                 INNER JOIN users u ON ps.saved_by = u.id AND u.is_active = ?
-                WHERE ps.news_post = p.id AND ps.saved_by = ? AND ps.is_active = ?
+                WHERE ps.news_post = p.id AND ps.saved_by = ?
             ) THEN 1 ELSE 0 END
         ),
         'posted_by', (
@@ -312,7 +322,7 @@ class NewsPosts {
             SELECT COUNT(*)
             FROM news_posts_comments pc
             INNER JOIN users u ON pc.comment_by = u.id AND u.is_active = ?
-            WHERE pc.news_post = p.id AND pc.is_active = ?
+            WHERE pc.news_post = p.id
         ),
         'likes', (
             SELECT JSON_ARRAYAGG(
@@ -337,9 +347,9 @@ class NewsPosts {
                     pl.id, pl.created_at, pl.updated_at, pl.liked_by
                 FROM news_posts_likes pl
                 INNER JOIN users u ON pl.liked_by = u.id AND u.is_active = ?
-                WHERE pl.news_post = p.id AND pl.is_active = ?
+                WHERE pl.news_post = p.id
                 ORDER BY pl.updated_at DESC 
-                LIMIT 3
+                LIMIT 4
             ) AS li 
         )
     `

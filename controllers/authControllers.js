@@ -20,10 +20,19 @@ const registerUser = async (req, res) => {
     if(!username || !email || !password || !user_type ) {
         throw new CustomError.BadRequestError('Please provider all user details.')
     }
+
+    // check if username already exists
+    const usernameAlreadyExists = await User.findUserByUsername({username})
+    if(usernameAlreadyExists) {
+        throw new CustomError.BadRequestError('Username already exists.')
+    }
+    
+    // check if email already exists
     const emailAlreadyExists = await User.findUserByEmail({email})
     if(emailAlreadyExists) {
         throw new CustomError.BadRequestError('Email already exists.')
     }
+
     // random six digits number
     const verificationToken = Math.floor(100000 + Math.random() * 900000);
     // while saving in db, we save the hashed verification code
@@ -124,14 +133,20 @@ const resendVerificationToken = async (req, res) => {
 }
 
 const login = async (req, res) => {
-    const {email, password, device_token} = req.body
-    if (!email || !password || !device_token) {
-        throw new CustomError.BadRequestError('Please provide email, password and device_token.');
+    const {identifier, password, device_token} = req.body
+    if (!identifier || !password || !device_token) {
+        throw new CustomError.BadRequestError('Please provide identifier, password and device_token.');
     }
-    const user = await User.findUserWithDeviceToken({email, getFrom: UserDetails.fromEmail})
-    
+    let user;
+    // first check identifier with username
+    user = await User.findUserWithDeviceToken({username: identifier, getFrom: UserDetails.fromUsername})
     if(!user) {
-        throw new CustomError.UnauthenticatedError('Invalid Credentials.')
+        // If does not match with username, check with email
+        user = await User.findUserWithDeviceToken({email: identifier, getFrom: UserDetails.fromEmail})
+        // if still doesn't match then throw error
+        if(!user) {
+            throw new CustomError.UnauthenticatedError('Invalid Credentials.')
+        }
     }
     const isPasswordCorrect = await compareHashPassword({userInputPassword: password, realPassword: user.password})
     if(!isPasswordCorrect) {
@@ -169,7 +184,7 @@ const login = async (req, res) => {
 
     // TOKENS OF USER THAT WERE CREATED 90 days before will be deleted from db
     await Token.deleteAllExpiredTokens({userId: user.id}) 
-    console.log(user);
+   
     res.status(StatusCodes.OK).json({status: "Success", user, accessToken: accessJWT, refreshToken: refreshJWT})
 }
 

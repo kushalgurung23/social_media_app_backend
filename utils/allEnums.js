@@ -8,6 +8,7 @@ class ImageTypeEnum extends enumify.Enumify {
 class UserDetails extends enumify.Enumify {
     static fromId = 'from-id';
     static fromEmail = 'from-email';
+    static fromUsername = 'from-username';
 }
 
 module.exports = {

@@ -5,6 +5,7 @@ const {uploadSingleImage, uploadMultipleImages, ImageTypeEnum, formatUtcTime} = 
 const PostsImages = require('../models/NewsPostsImages')
 const NewsPostsComments = require('../models/NewsPostsComments')
 const NewsPostsLikes = require('../models/NewsPostsLike')
+const NewsPostsReports = require('../models/NewsPostsReport')
 
 const getAllPosts = async (req, res) => {
     const userId = req.user.userId
@@ -242,6 +243,32 @@ const getAllNewsPostLikes = async (req, res) => {
         likes})
 }
 
+const reportNewsPost = async (req, res) => {
+    const {userId} = req.user
+    const {post_id, reason, created_at_utc, updated_at_utc} = req.body
+    if(!post_id || !reason || !created_at_utc || !updated_at_utc) {
+        throw new CustomError.BadRequestError('Please provide post_id, reason, created_at_utc and updated_at_utc.')
+    }
+    const post = await NewsPosts.checkById(post_id)
+    if(!post) {
+        throw new CustomError.NotFoundError('Please make sure you have provided a correct post id.')
+    }
+    const createdAt = formatUtcTime({utcDate: new Date(created_at_utc)})
+    const updatedAt = formatUtcTime({utcDate: new Date(updated_at_utc)})
+    const newsPostsReport = new NewsPostsReports({
+        newsPost: post_id, 
+        reason, 
+        reportedBy: userId,
+        createdAt,
+        updatedAt
+    })
+    await newsPostsReport.save()
+    res.status(StatusCodes.OK).json({
+        status: 'Success',
+        msg: 'Reported successfully.'
+    })
+}
+
 module.exports = {
     getAllPosts,
     createNewPost,
@@ -253,5 +280,6 @@ module.exports = {
     togglePostSave,
     newsPostComment,
     getAllNewsPostComments,
-    getAllNewsPostLikes
+    getAllNewsPostLikes,
+    reportNewsPost
 }

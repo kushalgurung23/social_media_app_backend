@@ -8,9 +8,9 @@ class NewsPostsLikes {
         const findSql = `SELECT COUNT(*) AS COUNT FROM news_posts_likes pl
         INNER JOIN users u on u.id = pl.liked_by AND u.is_active = ?
         WHERE
-        pl.news_post = ? AND pl.liked_by = ? AND pl.is_active = ?
+        pl.news_post = ? AND pl.liked_by = ?
         `
-        const [count, _] = await db.execute(findSql, [true, postId, userId, true])
+        const [count, _] = await db.execute(findSql, [true, postId, userId])
         
         const totalCount = count[0].COUNT;
         // IF USER HAS ALREADY LIKED THE POST, DELETE THE ROW
@@ -22,10 +22,9 @@ class NewsPostsLikes {
             INNER JOIN users u ON pl.liked_by = u.id
             WHERE pl.news_post = ? 
             AND pl.liked_by = ? 
-            AND pl.is_active = ?
             AND u.is_active = ?
             `
-            await db.execute(deleteSql, [postId, userId, true, true])
+            await db.execute(deleteSql, [postId, userId, true])
             
         }
         // ELSE INSERT THE ROW
@@ -36,12 +35,11 @@ class NewsPostsLikes {
                 news_post,
                 liked_by,
                 created_at,
-                updated_at,
-                is_active
+                updated_at
             )
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?)
             `
-            await db.execute(insertSql, [postId, userId, dateTime, dateTime, true])
+            await db.execute(insertSql, [postId, userId, dateTime, dateTime])
         }
     }
 
@@ -51,9 +49,9 @@ class NewsPostsLikes {
         `
             SELECT COUNT(*) AS total_likes FROM news_posts_likes pl
             INNER JOIN news_posts n on pl.news_post = n.id
-            WHERE pl.news_post = ? AND pl.is_active = ? AND n.is_active = ?
+            WHERE pl.news_post = ? AND n.is_active = ?
         `
-        const countValues = [!newsPostId ? 0 : newsPostId, true, true]
+        const countValues = [!newsPostId ? 0 : newsPostId, true]
         const [count, countField] = await db.execute(countSql, countValues)
         const totalLikeCount = count[0].total_likes
 
@@ -78,7 +76,7 @@ class NewsPostsLikes {
                                     INNER JOIN users uu ON
                                     uf.followed_to = uu.id
                                     WHERE uf.followed_to = u.id AND 
-                                    uf.followed_by = ? AND uf.is_active = ? AND uu.is_active = ?
+                                    uf.followed_by = ? AND uu.is_active = ?
                                 ) THEN 1 ELSE 0 END
                             )
                         )
@@ -90,14 +88,14 @@ class NewsPostsLikes {
             FROM (
                 SELECT *
                 FROM news_posts_likes
-                WHERE news_post = ? AND is_active = ?
+                WHERE news_post = ?
                 ORDER BY updated_at DESC
                 LIMIT ?
                 OFFSET ?
             ) AS l
         ) AS subquery
         `
-        const likeValues = [currentUserId, true, true, true, !newsPostId ? 0 : newsPostId, true, limit.toString(), offset.toString()]
+        const likeValues = [currentUserId, true, true, !newsPostId ? 0 : newsPostId, limit.toString(), offset.toString()]
         const [likes, _] = await db.execute(likeSql, likeValues)
         if(likes.length === 0) {
             return {totalLikeCount, likes: false}

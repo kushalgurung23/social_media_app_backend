@@ -1,5 +1,6 @@
 const express = require('express')
 const router = express.Router()
+
 const {
     getAllPosts,
     createNewPost,
@@ -11,7 +12,8 @@ const {
     togglePostSave,
     newsPostComment,
     getAllNewsPostComments,
-    getAllNewsPostLikes
+    getAllNewsPostLikes,
+    reportNewsPost
 } = require('../controllers/postControllers')
 
 router.route('/').get(getAllPosts).post(createNewPost)
@@ -21,6 +23,7 @@ router.route("/image/:id").delete(deletePostImage)
 router.route('/comments').post(newsPostComment)
 router.route('/:id/comments').get(getAllNewsPostComments)
 router.route('/:id/likes').get(getAllNewsPostLikes)
+router.route('/report').post(reportNewsPost)
 router.route("/:id").get(getPostById).patch(updatePost).delete(deletePost)
 
 module.exports = router

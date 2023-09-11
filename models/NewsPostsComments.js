@@ -22,31 +22,27 @@ class NewsPostsComments {
             comment, 
             comment_by,
             created_at,
-            updated_at,
-            is_active
+            updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?)`
+        VALUES (?, ?, ?, ?, ?)`
         
         await db.execute(sql, [
             this.newsPost, 
             this.comment, 
             this.commentBy,
             this.createdAt,
-            this.updatedAt, 
-            true
+            this.updatedAt
         ])
     }
 
     static async getAllPostComments({newsPostId, offset, limit}) {
-        console.log(offset);
-        console.log(limit);
         const countSql = 
         `
             SELECT COUNT(*) AS total_comments FROM news_posts_comments pc
             INNER JOIN news_posts n on pc.news_post = n.id
-            WHERE pc.news_post = ? AND pc.is_active = ? AND n.is_active = ?
+            WHERE pc.news_post = ? AND n.is_active = ?
         `
-        const countValues = [!newsPostId ? 0 : newsPostId, true, true]
+        const countValues = [!newsPostId ? 0 : newsPostId, true]
         const [count, countField] = await db.execute(countSql, countValues)
         const totalCommentCount = count[0].total_comments
 
@@ -73,7 +69,7 @@ class NewsPostsComments {
             FROM (
                 SELECT *
                 FROM news_posts_comments
-                WHERE news_post = ? AND is_active = ?
+                WHERE news_post = ?
                 ORDER BY updated_at DESC
                 LIMIT ?
                 OFFSET ?
@@ -81,7 +77,7 @@ class NewsPostsComments {
         ) AS subquery
         
         `
-        const commentValues = [true, !newsPostId ? 0 : newsPostId, true, limit.toString(), offset.toString()]
+        const commentValues = [true, !newsPostId ? 0 : newsPostId, limit.toString(), offset.toString()]
         const [comments, _] = await db.execute(commentSql, commentValues)
         if(comments.length === 0) {
             return {totalCommentCount, comments: false}
