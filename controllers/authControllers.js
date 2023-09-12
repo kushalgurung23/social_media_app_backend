@@ -26,7 +26,7 @@ const registerUser = async (req, res) => {
     if(usernameAlreadyExists) {
         throw new CustomError.BadRequestError('Username already exists.')
     }
-    
+
     // check if email already exists
     const emailAlreadyExists = await User.findUserByEmail({email})
     if(emailAlreadyExists) {
@@ -153,7 +153,11 @@ const login = async (req, res) => {
         throw new CustomError.UnauthenticatedError('Invalid Credentials.')
     }
     if(!user.is_verified) {
-        throw new CustomError.UnauthenticatedError('User is not verified yet. Please verify your email.')
+        return res.status(StatusCodes.UNAUTHORIZED).json({
+            'status': 'Error',
+            'msg': 'User is not verified yet. Please verify your email.',
+            'email': user.email
+        });
     }
 
     let isDeviceTokenAlreadyRegistered = false
