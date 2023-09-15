@@ -308,7 +308,7 @@ class NewsPosts {
                 WHERE ps.news_post = p.id AND ps.saved_by = ?
             ) THEN 1 ELSE 0 END
         ),
-        'posted_by', (
+        'posted_by', ( 
             SELECT JSON_OBJECT(
                 'id', u.id,
                 'username', u.username,

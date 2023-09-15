@@ -67,8 +67,8 @@ const createNewPost = async (req, res) => {
             }
         }
     }
-
-    res.status(StatusCodes.CREATED).json({status: "Success",  msg: "Post is created successfully."})
+    const post = await NewsPosts.getOnePost({postId: newPostId, userId})
+    res.status(StatusCodes.CREATED).json({status: "Success",  post: {news_post: post}})
 }
 
 const getPostById = async (req, res) => {
