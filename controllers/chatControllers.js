@@ -34,7 +34,17 @@ const getOneConversation = async (req, res) => {
     const limit = Number(req.query.limit) || 10
     const offset = (page -1) * limit
 
-    await Chat.findOne({userId, conversationId, limit, offset})
+    const {chat_messages} = await Chat.findOne({userId, conversationId, limit, offset})
+    if(!chat_messages) {
+        return res.status(StatusCodes.OK).json({
+            status: 'Success',
+            chat_messages: []
+        })
+    }
+    res.status(StatusCodes.OK).json({
+        status: 'Success',
+        chat_messages
+    })
 }
 
 module.exports = {getAllConversations, getOneConversation}

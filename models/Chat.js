@@ -27,14 +27,34 @@ class Chat {
                                 SELECT JSON_OBJECT(
                                     'id', u.id,
                                     'username', u.username,
-                                    'profile_picture', u.profile_picture
+                                    'profile_picture', u.profile_picture,
+                                    'device_tokens', COALESCE(
+                                        (
+                                            SELECT JSON_ARRAYAGG(
+                                                JSON_OBJECT(
+                                                    'id', dt.id,
+                                                    'device_token', dt.device_token
+                                                )
+                                            ) FROM user_device_token dt WHERE dt.user = cm.sender
+                                        ), JSON_ARRAY()
+                                    )
                                 ) FROM users u WHERE u.id = cm.sender
                             ),
                             'receiver', (
                                 SELECT JSON_OBJECT(
                                     'id', u.id,
                                     'username', u.username,
-                                    'profile_picture', u.profile_picture
+                                    'profile_picture', u.profile_picture,
+                                    'device_tokens', COALESCE(
+                                        (
+                                            SELECT JSON_ARRAYAGG(
+                                                JSON_OBJECT(
+                                                    'id', dt.id,
+                                                    'device_token', dt.device_token
+                                                )
+                                            ) FROM user_device_token dt WHERE dt.user = cm.receiver
+                                        ), JSON_ARRAY()
+                                    )
                                 ) FROM users u WHERE u.id = cm.receiver
                             ),
                             'created_at', cm.created_at,
@@ -68,6 +88,9 @@ class Chat {
     }
 
     static async findOne({userId, conversationId, limit, offset}) {
+        // JSON_ARRAYAGG function groups the result into a JSON array, 
+        // and the LIMIT clause applies to the number of rows returned, 
+        // not the number of elements within the JSON array. THAT IS WHY SUB QUERY IS USED.
         const conversationSql = `
         SELECT JSON_ARRAYAGG(
             JSON_OBJECT(
@@ -75,7 +98,7 @@ class Chat {
                 'text', c.text,
                 'has_receiver_seen', c.has_receiver_seen,
                 'created_at', c.created_at,
-                'updated_at, c.updated_at,
+                'updated_at', c.updated_at,
                 'sender', (
                     SELECT JSON_OBJECT(
                         'id', u.id,
@@ -94,17 +117,18 @@ class Chat {
                 )
             )
         ) AS result
-        FROM chat_messages c
-        WHERE c.sender = ? OR c.receiver = ? AND conversation_id = ?
-        ORDER BY c.updated_at DESC
-        LIMIT ? ORDER ?
+        FROM 
+        (
+            SELECT * FROM chat_messages
+            WHERE (sender = ? OR receiver = ?) AND conversation_id = ?
+            ORDER BY updated_at DESC
+            LIMIT ? OFFSET ?
+            ) c
         `
-
         const [result, _] = await db.execute(conversationSql, [!userId ? 0 : userId, !userId ? 0 : userId, !conversationId ? 0 : conversationId, limit.toString(), offset.toString()])
-        console.log(result);
+        if(result.length === 0) return {chat_messages: false};
+        return {chat_messages: result[0].result}
     }
 }
-
-
 
 module.exports = Chat

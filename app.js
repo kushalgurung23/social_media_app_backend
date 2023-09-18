@@ -7,6 +7,10 @@ const fileUpload = require('express-fileupload')
 const firebaseAdmin = require('firebase-admin')
 const firebaseServiceAccount = require('./config/c-talent-firebase-adminsdk.json')
 
+// SOCKET IO
+const server = require('http').createServer(app)
+const {initializeSocket} = require('./utils')
+
 // REQUIRE ROUTES
 const postRouter = require('./routes/postRoutes')
 const authRouter = require('./routes/authRoutes')
@@ -48,7 +52,10 @@ const start = async () => {
         credential: certificatePath,
         projectId: process.env.FIREBASE_PROJECT_ID
     })
-    app.listen(PORT, () => console.log(`Server running on PORT ${PORT}`));
+    server.listen(PORT, () => {
+     initializeSocket(server)
+      console.log(`Server running on PORT ${PORT}`)
+    });
   }
   catch (error) {
     console.log(error);
