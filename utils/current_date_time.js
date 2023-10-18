@@ -20,7 +20,6 @@ const formatUtcTime = ({utcDate}) => {
     const seconds = utcDate.getSeconds()
 
     const createdAtDate = `${year}-${month < 10 ? `0${month}` : month}-${day < 10 ? `0${day}` : day} ${hour < 10 ? `0${hour}` : hour}:${minute < 10 ? `0${minute}` : minute}:${seconds < 10 ? `0${seconds}` : seconds}`
-    console.log(createdAtDate);
     return createdAtDate
 }
 

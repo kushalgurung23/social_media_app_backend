@@ -1,6 +1,64 @@
 const db = require('../config/db')
 
 class Chat {
+
+    constructor({
+        text,
+        sender,
+        receiver,
+        has_receiver_seen,
+        created_at_utc,
+        updated_at_utc,
+        conversationId
+    }) {
+        this.text = text
+        this.sender = sender
+        this.receiver = receiver
+        this.has_receiver_seen = has_receiver_seen
+        this.created_at_utc = created_at_utc
+        this.updated_at_utc = updated_at_utc
+        this.conversationId = conversationId
+    }
+
+    async continueConversation() {
+        const sql = `
+            INSERT INTO chat_messages(
+                text,
+                sender,
+                receiver,
+                has_receiver_seen,
+                created_at,
+                updated_at,
+                conversation_id
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `
+
+        const [insertResult] = await db.execute(sql, [
+            this.text,
+            this.sender,
+            this.receiver,
+            this.has_receiver_seen,
+            this.created_at_utc,
+            this.updated_at_utc,
+            this.conversationId])
+
+        console.log(insertResult)
+        if(!insertResult) {
+            console.log("insertResult is false");
+            return {status: false, chatId: false};
+        }
+        const updateSql = `
+            UPDATE conversations set updated_at = ? WHERE id = ?
+        `
+        const [updateResult] = await db.execute(updateSql, [this.updated_at_utc, this.conversationId])
+        if(!updateResult) {
+            console.log("updateResult is false");
+            return {status: false, chatId: false};
+        }
+        return {status: true, chatId: insertResult.insertId};
+    }
+
     static async findAll({offset, limit, userId}) {
         const countSql = `
         SELECT COUNT(*) AS total_conversations from conversations AS c
@@ -128,6 +186,10 @@ class Chat {
         const [result, _] = await db.execute(conversationSql, [!userId ? 0 : userId, !userId ? 0 : userId, !conversationId ? 0 : conversationId, limit.toString(), offset.toString()])
         if(result.length === 0) return {chat_messages: false};
         return {chat_messages: result[0].result}
+    }
+
+    static async addChat({}) {
+
     }
 }
 

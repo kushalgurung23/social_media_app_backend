@@ -1,5 +1,5 @@
 const db = require('../config/db')
-const {getCurrentDateTime} = require('../utils')
+const { getCurrentDateTime } = require('../utils/current_date_time')
 
 class Token {
 

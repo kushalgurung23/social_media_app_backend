@@ -5,7 +5,8 @@ const {generateHashPassword, compareHashPassword} = require('./hashPassword')
 const createTokenUser = require('./createTokenUser')
 const sendCustomMessageEmail = require('./sendCustomMessageEmail')
 const {uploadSingleImage, uploadMultipleImages} = require('./uploadImage')
-const initializeSocket = require('./socket_io')
+const initializeSocket = require('./sockets/index_socket')
+const {validateAccessToken} = require('./validate_access_token')
 const {
     isTokenValid,
     createJWT,
@@ -29,5 +30,6 @@ module.exports = {
     uploadMultipleImages,
     ImageTypeEnum,
     UserDetails,
-    initializeSocket
+    initializeSocket,
+    validateAccessToken
 }
