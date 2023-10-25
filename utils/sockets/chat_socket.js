@@ -31,7 +31,7 @@ const chatSocket = (io) => {
                 conversationId: conversation_id
             })
             const {status, chatId} = await chat.continueConversation();
-            console.log("STTATUS IS", status);
+            console.log("STATUS IS", status);
             if(!status) {
                 return {
                     'status': 'Error',
@@ -45,21 +45,23 @@ const chatSocket = (io) => {
             // messageText object will be emitted to chatting users
             const messageText = {
                 status: 'Success',
+                conversation_id,
                 chat: {
                     id: chatId,
                     text,
                     sender: {
-                        id: sender
+                        id: Number(sender.toString())
                     },
                     receiver: {
-                        id: receiver
+                        id: Number(receiver.toString())
                     },
                     created_at: sent_at_utc,
                     updated_at: sent_at_utc,
-                    has_receiver_seen
+                    has_receiver_seen: has_receiver_seen ? 1 : 0
                 }
             }
             console.log(messageText);
+
             if (senderUser !== undefined) {
                 io.to(senderUser.socketId).emit("getMessageForSender", messageText);
             }

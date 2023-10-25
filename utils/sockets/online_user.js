@@ -3,7 +3,9 @@
 
  // Adding new user in the socket
  const addOnlineUser = (userId, socketId) => {
-    !onlineUsers.some(user => user.userId === userId) && onlineUsers.push({ userId, socketId });
+    if (!onlineUsers.some(user => user.userId === userId)) {
+      onlineUsers.push({ userId, socketId });
+    }
  };
 
  // Removing user 
@@ -13,6 +15,7 @@
 
  // get user id and socket id 
  const getOnlineUser = (userId) => {
+   console.log(onlineUsers)
     return onlineUsers.find(onlineUsers => onlineUsers.userId === userId);
  }
 
