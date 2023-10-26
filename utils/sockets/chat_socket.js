@@ -6,6 +6,7 @@ const {formatUtcTime} = require('../current_date_time')
 
 const chatSocket = (io) => {
     io.on('connection', (socket) => {
+        
         // send and get message
         socket.on('sendMessage', async ({ 
             sender, receiver, text, has_receiver_seen, 
@@ -31,7 +32,6 @@ const chatSocket = (io) => {
                 conversationId: conversation_id
             })
             const {status, chatId} = await chat.continueConversation();
-            console.log("STATUS IS", status);
             if(!status) {
                 return {
                     'status': 'Error',
@@ -61,7 +61,8 @@ const chatSocket = (io) => {
                 }
             }
             console.log(messageText);
-
+            console.log("SENDER USER IS ", senderUser);
+            console.log("RECEIVER USER IS", receivingUser);
             if (senderUser !== undefined) {
                 io.to(senderUser.socketId).emit("getMessageForSender", messageText);
             }

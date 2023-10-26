@@ -1,6 +1,7 @@
 const { StatusCodes } = require("http-status-codes")
 const Chat = require("../models/Chat")
 
+// ALL CONVERSATION WITH DIFFERENT USERS (LOADS ONLY LATEST TEXT)
 const getAllConversations = async (req, res) => {
     const userId = req.user.userId
 
@@ -27,6 +28,7 @@ const getAllConversations = async (req, res) => {
     })
 }
 
+// All CHAT MESSAGES WITH ONE USER (LOADS ALL WITH PAGINATION)
 const getOneConversation = async (req, res) => {
     const userId = req.user.userId
     const {id:conversationId} = req.params

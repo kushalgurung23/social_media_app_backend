@@ -2,7 +2,6 @@ const {addOnlineUser, removeOnlineUser, getAllOnlineUsers} = require('./online_u
 const userSocket = (io) => {
 
     io.on('connection', (socket) => {
-        console.log("A new user has logged in.", socket.id);
         // when connect
         // userId is received from frontend
         socket.on("addUser", (userId) => {

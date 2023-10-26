@@ -15,12 +15,11 @@
 
  // get user id and socket id 
  const getOnlineUser = (userId) => {
-   console.log(onlineUsers)
     return onlineUsers.find(onlineUsers => onlineUsers.userId === userId);
  }
 
  const getAllOnlineUsers = () => {
-   console.log(onlineUsers);
+   console.log("all online users",onlineUsers);
     return onlineUsers;
  }
 

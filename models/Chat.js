@@ -187,10 +187,6 @@ class Chat {
         if(result.length === 0) return {chat_messages: false};
         return {chat_messages: result[0].result}
     }
-
-    static async addChat({}) {
-
-    }
 }
 
 module.exports = Chat
