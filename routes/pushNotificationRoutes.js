@@ -1,7 +1,8 @@
 const express = require('express')
 const router = express.Router()
-const {sendPushNotification} = require('../controllers/pushNotificationController')
+const {sendNotification, getAllNotifications, readNotification} = require('../controllers/pushNotificationController')
 
-router.route('/').post(sendPushNotification)
+router.route('/').post(sendNotification).get(getAllNotifications)
+router.route('/:id').patch(readNotification)
 
 module.exports = router

@@ -16,20 +16,12 @@ const getAllPosts = async (req, res) => {
     const offset = (page -1) * limit
 
     const {totalPostsCount, posts} = await NewsPosts.findAll({offset, limit, search, order_by, userId})
-    if(!posts) {
-        return res.status(StatusCodes.OK).json({
-            status: "Success",
-            count: totalPostsCount, 
-            page,
-            limit,
-            posts: []})
-    }
-    res.status(StatusCodes.OK).json({
+    return res.status(StatusCodes.OK).json({
         status: "Success",
         count: totalPostsCount, 
         page,
         limit,
-        posts: posts})
+        posts: !posts ? [] : posts})
 }
 
 const createNewPost = async (req, res) => {
@@ -195,20 +187,12 @@ const getAllNewsPostComments = async (req, res) => {
     const offset = (page-1) * limit
 
     const {totalCommentCount, comments} = await NewsPostsComments.getAllPostComments({newsPostId, offset, limit})
-    if(!comments) {
-        return res.status(StatusCodes.OK).json({
-            status: "Success",
-            count: totalCommentCount, 
-            page,
-            limit,
-            comments: []})
-    }
     res.status(StatusCodes.OK).json({
         status: "Success",
         count: totalCommentCount, 
         page,
         limit,
-        comments})
+        comments: !comments ? [] : comments})
 }
 
 const getAllNewsPostLikes = async (req, res) => {
@@ -227,20 +211,12 @@ const getAllNewsPostLikes = async (req, res) => {
     const offset = (page-1) * limit
 
     const {totalLikeCount, likes} = await NewsPostsLikes.getAllPostLikes({newsPostId, offset, limit, currentUserId})
-    if(!likes) {
-        return res.status(StatusCodes.OK).json({
-            status: "Success",
-            count: totalLikeCount, 
-            page,
-            limit,
-            likes: []})
-    }
     res.status(StatusCodes.OK).json({
         status: "Success",
         count: totalLikeCount, 
         page,
         limit,
-        likes})
+        likes: !likes ? [] : likes})
 }
 
 const reportNewsPost = async (req, res) => {

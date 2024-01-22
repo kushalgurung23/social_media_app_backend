@@ -1,4 +1,3 @@
-const axios = require('axios').default;
 const Chat = require('../../models/Chat');
 const {validateAccessToken} = require('../validate_access_token');
 const {getOnlineUser} = require('./online_user')

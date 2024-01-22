@@ -4,29 +4,20 @@ const CustomError = require("../errors/index")
 
 const getAllServices = async (req, res) => {
     const {userId} = req.user
-    const {search, order_by, is_recommend} = req.query
+    const {search, order_by, is_recommend, category} = req.query
     const page = Number(req.query.page) || 1
     const limit = Number(req.query.limit) || 10
     const offset = (page -1) * limit
 
     const {totalServicesCount, services} = await Services.findAll({
-        offset, limit, search, order_by, userId, is_recommend
+        offset, limit, search, order_by, userId, is_recommend, category
     })
-    if(!services) {
-        return res.status(StatusCodes.OK).json({
-            status: "Success",
-            page,
-            limit,
-            count: totalServicesCount,
-            services: []
-        })
-    }
     res.status(StatusCodes.OK).json({
         status: "Success",
         page,
         limit,
         count: totalServicesCount,
-        services
+        services: !services ? [] : services
     })
 }
 
@@ -70,21 +61,30 @@ const getAllSavedServices = async (req, res) => {
     const {totalServicesCount, services} = await Services.getSavedServices({
         offset, limit, order_by, userId
     })
-    if(!services) {
-        return res.status(StatusCodes.OK).json({
-            status: "Success",
-            page,
-            limit,
-            count: totalServicesCount,
-            services: []
-        })
-    }
     res.status(StatusCodes.OK).json({
         status: "Success",
         page,
         limit,
         count: totalServicesCount,
-        services
+        services: !services ? [] : services
+    })
+}
+
+const getAllServiceCategories = async (req, res) => {
+
+    const {totalCategoriesCount, categories} = await Services.getServicesCategories()
+    if(!categories) {
+        return res.status(StatusCodes.OK).json({
+            status: "Success",
+            count: totalCategoriesCount,
+            services: []
+        })
+    }
+    res.status(StatusCodes.OK).json({
+        status: "Success",
+      
+        count: totalCategoriesCount,
+        categories
     })
 }
 
@@ -92,5 +92,6 @@ module.exports = {
     getAllServices,
     getServiceById,
     toggleServiceSave,
-    getAllSavedServices
+    getAllSavedServices,
+    getAllServiceCategories
 }

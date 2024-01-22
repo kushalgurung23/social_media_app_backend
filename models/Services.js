@@ -2,26 +2,34 @@ const db = require('../config/db')
 const {getCurrentDateTime} = require('../utils')
 
 class Services {
-  static async findAll({ offset, limit, search, order_by, userId, is_recommend }) {
+  static async findAll({ offset, limit, search, order_by, userId, is_recommend, category }) {
     // TOTAL COUNT
     let countSql = `
         SELECT COUNT(*) AS total_services
         FROM services`;
     let countValues = [];
-    if(search || is_recommend === '1') {
+    if(search || is_recommend === '1' || category) {
         countSql += ` WHERE`
     }
     if (search) {
       countSql += ` title LIKE ?`;
       countValues.push(`%${search}%`);
     }
-    if(search && is_recommend === '1') {
+    if(search && (is_recommend === '1' || category)) {
         countSql += ` AND`
     }
     if(is_recommend === '1') {
         countSql += ` is_recommend = ?`
         countValues.push(true)
     }
+    if((search || is_recommend === '1') && category) {
+        countSql += ` AND`
+    }
+    if(category) {
+        countSql += ` category LIKE ?`;
+        countValues.push(category)
+    }
+    
 
     const [count, countField] = await db.execute(countSql, countValues);
     const totalServicesCount = count[0].total_services;
@@ -31,24 +39,36 @@ class Services {
         ) AS service
                 FROM services s
         `;
-
+    console.log(countSql);
     let servicesValues = [true, !userId ? 0 : userId];
 
-    if(search || is_recommend === '1') {
+    if(search || is_recommend === '1' || category) {
+        console.log('a');
         getServicesSql += ` WHERE`
     }
     if (search) {
+        console.log('b');
         getServicesSql += ` s.title LIKE ?`;
         servicesValues.push(`%${search}%`);
     }
-    if(search && is_recommend === '1') {
+    if(search && (is_recommend === '1' || category)) {
+        console.log('c');
         getServicesSql += ` AND`
     }
     if(is_recommend === '1') {
-        getServicesSql += ` s.is_recommend = ?`
-        servicesValues.push(true)
+      console.log("d");
+      getServicesSql += ` s.is_recommend = ?`;
+      servicesValues.push(true);
     }
-
+    if((search || is_recommend === '1') && category) {
+        console.log('e');
+        getServicesSql += ` AND`;
+    }
+    if(category) {
+        console.log('f');
+        getServicesSql += ` s.category LIKE ?`
+        servicesValues.push(category)
+    }
 
     getServicesSql += " GROUP BY s.id";
     // IF order_by query string is not selected, api will be sent in desc order
@@ -190,6 +210,25 @@ class Services {
     return { totalServicesCount, services };
   }
 
+  static async getServicesCategories() {
+    // TOTAL COUNT
+    const countSql = `
+        SELECT count(*) AS total_categories
+        FROM service_categories
+    `
+    const [count, countField] = await db.execute(countSql, [])
+    const totalCategoriesCount = count[0].service_categories;
+
+    const getServicesSql = `
+        SELECT * FROM service_categories ORDER BY created_at DESC
+    `
+    const [categories, _] = await db.execute(getServicesSql, [])
+    if(categories.length === 0) {
+        return {totalCategoriesCount, categories: false}
+    }
+    return {totalCategoriesCount, categories}
+  }
+
   // COALESCE WILL RETURN EMPTY ARRAY WHEN SUB QUERY RETURNS 0 ROWS
   static getServicesBaseQuery = `
     SELECT JSON_OBJECT(
@@ -231,5 +270,7 @@ class Services {
         )  
     `;
 }
+
+
 
 module.exports = Services
