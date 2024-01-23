@@ -264,6 +264,22 @@ class NewsPosts {
         ])
     }
 
+    static async getMyTopic({userId}) {
+        const countSql = `
+            SELECT COUNT(*) AS total_posts
+            FROM news_posts WHERE
+            posted_by = ?
+        `
+        const countValues = [userId]
+
+        const [count, _] = await db.execute(countSql, countValues);
+        const totalPostsCount = count[0].total_posts;
+
+        let getMyTopicSql = `
+            
+        `
+    }
+
     // COALESCE WILL RETURN EMPTY ARRAY WHEN SUB QUERY RETURNS 0 ROWS
     static getPostBaseQuery = `
     SELECT JSON_OBJECT(

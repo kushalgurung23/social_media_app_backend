@@ -63,6 +63,18 @@ class User {
             'created_at', u.created_at, 
             'updated_at', u.updated_at, 
             'is_active', u.is_active,
+            'created_posts_count', (
+                SELECT COUNT(*) FROM news_posts np WHERE 
+                np.posted_by = u.id
+            ),
+            'following_count', (
+                SELECT COUNT(*) FROM user_follows uf WHERE
+                uf.followed_by = u.id
+            ),
+            'follower_count', (
+                SELECT COUNT(*) FROM user_follows uf WHERE 
+                uf.followed_to = u.id
+            ),
             'device_token', COALESCE(
                 (
                     SELECT JSON_ARRAYAGG(
