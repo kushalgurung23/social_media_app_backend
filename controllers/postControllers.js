@@ -245,6 +245,38 @@ const reportNewsPost = async (req, res) => {
     })
 }
 
+const getMyNewsPosts = async (req, res) => {
+    const {userId} = req.user
+    const {order_by} = req.query
+    const page = Number(req.query.page) || 1
+    const limit = Number(req.query.limit) || 6
+    const offset = (page-1) * limit
+
+    const {totalPostsCount, news} = await NewsPosts.getUsersCreatedTopics({userId, offset, limit, order_by})
+    res.status(StatusCodes.OK).json({
+        status: "Success",
+        count: totalPostsCount, 
+        page,
+        limit,
+        news: !news ? [] : news})
+}
+
+const getBookmarkNewsPosts = async (req, res) => {
+    const {userId} = req.user
+    const {order_by} = req.query
+    const page = Number(req.query.page) || 1
+    const limit = Number(req.query.limit) || 6
+    const offset = (page-1) * limit
+
+    const {totalPostsCount, news} = await NewsPosts.getUsersBookmarkTopics({userId, offset, limit, order_by})
+    res.status(StatusCodes.OK).json({
+        status: "Success",
+        count: totalPostsCount, 
+        page,
+        limit,
+        news: !news ? [] : news})
+}
+
 module.exports = {
     getAllPosts,
     createNewPost,
@@ -257,5 +289,7 @@ module.exports = {
     newsPostComment,
     getAllNewsPostComments,
     getAllNewsPostLikes,
-    reportNewsPost
+    reportNewsPost,
+    getMyNewsPosts,
+    getBookmarkNewsPosts
 }

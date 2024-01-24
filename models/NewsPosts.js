@@ -264,7 +264,7 @@ class NewsPosts {
         ])
     }
 
-    static async getMyTopic({userId}) {
+    static async getUsersCreatedTopics({userId, offset, limit, order_by}) {
         const countSql = `
             SELECT COUNT(*) AS total_posts
             FROM news_posts WHERE
@@ -272,13 +272,128 @@ class NewsPosts {
         `
         const countValues = [userId]
 
-        const [count, _] = await db.execute(countSql, countValues);
+        const [count, countField] = await db.execute(countSql, countValues);
         const totalPostsCount = count[0].total_posts;
 
         let getMyTopicSql = `
-            
+            SELECT JSON_OBJECT(
+                'id', n.id,
+                'title', n.title,
+                'created_at', n.created_at,
+                'updated_at', n.updated_at,
+                'like_count', (
+                    SELECT COUNT(*) FROM news_posts_likes nl
+                    WHERE nl.news_post = n.id
+                ),
+                'comment_count', (
+                    SELECT COUNT(*) FROM news_posts_comments nc
+                    WHERE nc.news_post = n.id
+                ),
+                'created_by', (
+                    SELECT JSON_OBJECT(
+                        'id', u.id,
+                        'username', u.username
+                    )
+                    FROM users u
+                    WHERE u.id = n.posted_by
+                )
+            ) AS news
+            FROM news_posts n WHERE n.posted_by = ?
         `
+
+         // IF order_by query string is not selected, api will be sent in desc order
+        if(!order_by) {
+            getMyTopicSql+= " ORDER BY n.created_at DESC"
+        }
+        if(order_by) {
+            // order_by will accept two values: created_at_asc or created_at_desc
+            if(order_by === 'created_at_asc') {
+                getMyTopicSql+= " ORDER BY n.created_at ASC"
+            }
+            // IF ANYTHING ELSE EXCEPT created_at_asc is provided, the result will be sent in descending order.
+            else {
+                getMyTopicSql+= " ORDER BY n.created_at DESC"
+            }
+        }
+        getMyTopicSql+= " LIMIT ? OFFSET ?"
+        const sqlValues = [userId, limit.toString(), offset.toString()]
+        const [news, _] = await db.execute(getMyTopicSql, sqlValues)
+        if(news.length === 0) {
+            return {totalPostsCount, news: false}
+        }
+        const formattedNews = news.map(({news}) =>news)
+        console.log(news);
+        return {totalPostsCount, news: formattedNews}
     }
+
+    static async getUsersBookmarkTopics({userId, offset, limit, order_by}) {
+        const countSql = `
+            SELECT COUNT(*) AS total_posts
+            FROM news_posts n 
+            INNER JOIN news_posts_saves ns 
+            ON n.id = ns.news_post
+            WHERE ns.saved_by = ?
+        `
+        const countValues = [userId]
+
+        const [count, countField] = await db.execute(countSql, countValues);
+        const totalPostsCount = count[0].total_posts;
+
+        let getMyTopicSql = `
+            SELECT JSON_OBJECT(
+                'id', n.id,
+                'title', n.title,
+                'created_at', n.created_at,
+                'updated_at', n.updated_at,
+                'like_count', (
+                    SELECT COUNT(*) FROM news_posts_likes nl
+                    WHERE nl.news_post = n.id
+                ),
+                'comment_count', (
+                    SELECT COUNT(*) FROM news_posts_comments nc
+                    WHERE nc.news_post = n.id
+                ),
+                'saved_at', ns.created_at,
+                'created_by', (
+                    SELECT JSON_OBJECT(
+                        'id', u.id,
+                        'username', u.username
+                    )
+                    FROM users u
+                    WHERE u.id = n.posted_by
+                )
+            ) AS news
+            FROM news_posts n
+            INNER JOIN news_posts_saves ns
+            ON n.id = ns.news_post
+            WHERE ns.saved_by = ?
+        `
+
+         // IF order_by query string is not selected, api will be sent in desc order
+        if(!order_by) {
+            getMyTopicSql+= " ORDER BY n.created_at DESC"
+        }
+        if(order_by) {
+            // order_by will accept two values: created_at_asc or created_at_desc
+            if(order_by === 'created_at_asc') {
+                getMyTopicSql+= " ORDER BY n.created_at ASC"
+            }
+            // IF ANYTHING ELSE EXCEPT created_at_asc is provided, the result will be sent in descending order.
+            else {
+                getMyTopicSql+= " ORDER BY n.created_at DESC"
+            }
+        }
+        getMyTopicSql+= " LIMIT ? OFFSET ?"
+        const sqlValues = [userId, limit.toString(), offset.toString()]
+        const [news, _] = await db.execute(getMyTopicSql, sqlValues)
+        if(news.length === 0) {
+            return {totalPostsCount, news: false}
+        }
+        const formattedNews = news.map(({news}) =>news)
+        console.log(news);
+        return {totalPostsCount, news: formattedNews}
+    }
+
 
     // COALESCE WILL RETURN EMPTY ARRAY WHEN SUB QUERY RETURNS 0 ROWS
     static getPostBaseQuery = `
