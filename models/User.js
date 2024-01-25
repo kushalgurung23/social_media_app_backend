@@ -68,12 +68,24 @@ class User {
                 np.posted_by = u.id
             ),
             'following_count', (
-                SELECT COUNT(*) FROM user_follows uf WHERE
-                uf.followed_by = u.id
+                SELECT COUNT(*) FROM users u2
+                INNER JOIN user_follows uf ON 
+                u2.id = uf.followed_to
+                INNER JOIN users u3 
+                ON u3.id = uf.followed_by
+                WHERE u2.is_active = ?
+                AND u3.is_active = ?
+                AND u3.id = u.id
             ),
             'follower_count', (
-                SELECT COUNT(*) FROM user_follows uf WHERE 
-                uf.followed_to = u.id
+                SELECT COUNT(*) FROM users u2
+                INNER JOIN user_follows uf ON
+                u2.id = uf.followed_by
+                INNER JOIN users u3
+                ON u3.id = uf.followed_to
+                WHERE u2.is_active =?
+                AND u3.is_active = ?
+                AND u3.id = u.id
             ),
             'device_token', COALESCE(
                 (
@@ -92,7 +104,7 @@ class User {
         ) AS user
         FROM users u WHERE 
         `
-        let sqlValues = []
+        let sqlValues = [true, true, true, true]
         if(getFrom == UserDetails.fromEmail && email) {
            
             sql+= 'u.email = ? '
@@ -231,6 +243,161 @@ class User {
         const sql = `DELETE FROM user_device_token where device_token = ?`
         await db.execute(sql, [deviceToken])
     }
+
+    static async getFollowings({userId, order_by, limit, offset}) {
+        const countSql = `
+            SELECT COUNT(*) AS total_followings
+            FROM users u 
+            INNER JOIN user_follows uf
+            ON u.id = uf.followed_to
+            INNER JOIN users u2 
+            ON uf.followed_by = u2.id
+            WHERE u.is_active = ?
+            AND u2.is_active = ?
+            AND u2.id = ?
+        `;
+        const countValues = [true, true, userId]
+
+        const [count, countField] = await db.execute(countSql, countValues)
+        const totalFollowingsCount = count[0].total_followings
+
+        let getFollowingsSql = `
+            SELECT JSON_OBJECT(
+                'id', u.id,
+                'username', u.username,
+                'email', u.email,
+                'profile_picture', u.profile_picture,
+                'user_type', u.user_type,
+                'is_followed', (
+                    SELECT CASE WHEN EXISTS (
+                        SELECT 1
+                        FROM user_follows uf
+                        WHERE uf.followed_to = u.id
+                        AND uf.followed_by = ? 
+                    ) THEN 1 ELSE 0 END
+                ),
+                'created_at', u.created_at,
+                'updated_at', u.updated_at,
+                'follow_details', (
+                    SELECT JSON_OBJECT(
+                        'created_at', f.created_at,
+                        'updated_at', f.updated_at
+                    ) FROM user_follows f
+                    WHERE f.followed_to = u.id
+                    AND f.followed_by = u2.id
+                )
+            ) AS user
+            FROM users u 
+            INNER JOIN user_follows uf
+            ON u.id = uf.followed_to
+            INNER JOIN users u2
+            ON uf.followed_by = u2.id
+            WHERE u.is_active = ?
+            AND u2.is_active =?
+            AND u2.id = ?
+        `
+
+         // IF order_by query string is not selected, api will be sent in desc order
+         if(!order_by) {
+            getFollowingsSql+= " ORDER BY uf.created_at DESC"
+        }
+        if(order_by) {
+            // order_by will accept two values: created_at_asc or created_at_desc
+            if(order_by === 'created_at_asc') {
+                getFollowingsSql+= " ORDER BY uf.created_at ASC"
+            }
+            // IF ANYTHING ELSE EXCEPT created_at_asc is provided, the result will be sent in descending order.
+            else {
+                getFollowingsSql+= " ORDER BY uf.created_at DESC"
+            }
+        }
+        getFollowingsSql+= " LIMIT ? OFFSET ?"
+        const followingSqlValues = [userId, true, true, userId, limit.toString(), offset.toString()]
+        const [followings, _] = await db.execute(getFollowingsSql, followingSqlValues)
+        if(followings.length === 0) {
+            return {totalFollowingsCount, followings: false}
+        }
+        const formattedFollowings = followings.map(({user}) => user)
+        return {totalFollowingsCount, followings: formattedFollowings}
+    }
+
+    static async getFollowers({userId, order_by, limit, offset}) {
+        const countSql = `
+            SELECT COUNT(*) AS total_followers
+            FROM users u 
+            INNER JOIN user_follows uf
+            ON u.id = uf.followed_by
+            INNER JOIN users u2 
+            ON uf.followed_to = u2.id
+            WHERE u.is_active = ?
+            AND u2.is_active = ?
+            AND u2.id = ?
+        `;
+        const countValues = [true, true, userId]
+
+        const [count, countField] = await db.execute(countSql, countValues)
+        const totalFollowersCount = count[0].total_followers
+
+        let getFollowersSql = `
+            SELECT JSON_OBJECT(
+                'id', u.id,
+                'username', u.username,
+                'email', u.email,
+                'profile_picture', u.profile_picture,
+                'user_type', u.user_type,
+                'is_followed', (
+                    SELECT CASE WHEN EXISTS (
+                        SELECT 1
+                        FROM user_follows uf
+                        WHERE uf.followed_to = u.id
+                        AND uf.followed_by = ? 
+                    ) THEN 1 ELSE 0 END
+                ),
+                'created_at', u.created_at,
+                'updated_at', u.updated_at,
+                'follow_details', (
+                    SELECT JSON_OBJECT(
+                        'created_at', f.created_at,
+                        'updated_at', f.updated_at
+                    ) FROM user_follows f
+                    WHERE f.followed_to = u.id
+                    AND f.followed_by = u2.id
+                )
+            ) AS user
+            FROM users u 
+            INNER JOIN user_follows uf
+            ON u.id = uf.followed_by
+            INNER JOIN users u2
+            ON uf.followed_to = u2.id
+            WHERE u.is_active = ?
+            AND u2.is_active =?
+            AND u2.id = ?
+        `
+
+         // IF order_by query string is not selected, api will be sent in desc order
+         if(!order_by) {
+            getFollowersSql+= " ORDER BY uf.created_at DESC"
+        }
+        if(order_by) {
+            // order_by will accept two values: created_at_asc or created_at_desc
+            if(order_by === 'created_at_asc') {
+                getFollowersSql+= " ORDER BY uf.created_at ASC"
+            }
+            // IF ANYTHING ELSE EXCEPT created_at_asc is provided, the result will be sent in descending order.
+            else {
+                getFollowersSql+= " ORDER BY uf.created_at DESC"
+            }
+        }
+        getFollowersSql+= " LIMIT ? OFFSET ?"
+        const followersSqlValues = [userId, true, true, userId, limit.toString(), offset.toString()]
+        const [followers, _] = await db.execute(getFollowersSql, followersSqlValues)
+        if(followers.length === 0) {
+            return {totalFollowersCount, followers: false}
+        }
+        const formattedFollowers = followers.map(({user}) => user)
+        return {totalFollowersCount, followers: formattedFollowers}
+    }
+
 
 }
 
