@@ -15,7 +15,8 @@ const {
     getAllNewsPostLikes,
     reportNewsPost,
     getMyNewsPosts,
-    getBookmarkNewsPosts
+    getBookmarkNewsPosts,
+    getMyCreatedPosts
 } = require('../controllers/postControllers')
 
 router.route('/').get(getAllPosts).post(createNewPost)
@@ -25,6 +26,7 @@ router.route("/image/:id").delete(deletePostImage)
 router.route('/comments').post(newsPostComment)
 router.route('/my-news-posts').get(getMyNewsPosts)
 router.route('/my-bookmark-posts').get(getBookmarkNewsPosts)
+router.route('/my-created-posts').get(getMyCreatedPosts)
 router.route('/:id/comments').get(getAllNewsPostComments)
 router.route('/:id/likes').get(getAllNewsPostLikes)
 router.route('/report').post(reportNewsPost)

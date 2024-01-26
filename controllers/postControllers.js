@@ -24,6 +24,23 @@ const getAllPosts = async (req, res) => {
         posts: !posts ? [] : posts})
 }
 
+const getMyCreatedPosts = async (req, res) => {
+    const userId = req.user.userId
+    const {search, order_by} = req.query
+    
+    const page = Number(req.query.page) || 1
+    const limit = Number(req.query.limit) || 10
+    const offset = (page -1) * limit
+
+    const {totalPostsCount, posts} = await NewsPosts.getMyCreatedPost({offset, limit, search, order_by, userId})
+    return res.status(StatusCodes.OK).json({
+        status: "Success",
+        count: totalPostsCount, 
+        page,
+        limit,
+        posts: !posts ? [] : posts})
+}
+
 const createNewPost = async (req, res) => {
 
     const {userId} = req.user
@@ -245,6 +262,7 @@ const reportNewsPost = async (req, res) => {
     })
 }
 
+// MY TOPIC POST IN PROFILE TAB: It does not have all data of news
 const getMyNewsPosts = async (req, res) => {
     const {userId} = req.user
     const {order_by} = req.query
@@ -261,6 +279,7 @@ const getMyNewsPosts = async (req, res) => {
         news: !news ? [] : news})
 }
 
+// MY BOOKMARK TOPIC IN PROFILE TAB
 const getBookmarkNewsPosts = async (req, res) => {
     const {userId} = req.user
     const {order_by} = req.query
@@ -291,5 +310,6 @@ module.exports = {
     getAllNewsPostLikes,
     reportNewsPost,
     getMyNewsPosts,
-    getBookmarkNewsPosts
+    getBookmarkNewsPosts,
+    getMyCreatedPosts
 }

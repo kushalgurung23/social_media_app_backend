@@ -168,6 +168,106 @@ class NewsPosts {
         return post
     }
 
+    static async getMyCreatedPost({offset, limit, search, order_by, userId}) {
+
+        // TOTAL COUNT
+        // For reported_news_posts, The LEFT JOIN ensures that all rows from the news_posts table 
+        // are included, regardless of whether there is a matching row in the reported_news_posts table.
+        // The WHERE clause filters for rows where the reported_news_posts.news_post field is NULL, 
+        // indicating that there is no report associated with that news post by the specified user.
+        let countSql = `
+        SELECT COUNT(*) AS total_posts FROM news_posts p
+        INNER JOIN users u on p.posted_by = u.id 
+        LEFT JOIN reported_news_posts rnp ON
+        p.id = rnp.news_post AND
+        rnp.reported_by = ?
+        WHERE p.posted_by = ? AND p.is_active = ? AND u.is_active = ? AND rnp.news_post IS NULL`
+        let countValues = [!userId? 0 : userId, !userId? 0 : userId, true, true]
+
+        if(search) {
+            countSql+= ` AND title LIKE ?`
+            countValues.push(`%${search}%`)
+        }
+
+        const [count, countField] = await db.execute(countSql, countValues)
+        const totalPostsCount = count[0].total_posts
+
+        let postsSql = this.getPostBaseQuery;
+
+        postsSql+= 
+        `
+            ,'comments', (
+                SELECT JSON_ARRAYAGG(
+                    JSON_OBJECT(
+                        'id', c.id,
+                        'comment', c.comment,
+                        'created_at', c.created_at,
+                        'updated_at', c.updated_at,
+                        'comment_by', (
+                            SELECT JSON_OBJECT (
+                                'id', u.id,
+                                'username', u.username,
+                                'profile_picture', u.profile_picture,
+                                'user_type', u.user_type
+                            )
+                            FROM users u
+                            WHERE u.id = c.comment_by AND u.is_active = ?
+                        )
+                    )
+                )
+                FROM (
+                    SELECT 
+                        pc.id, pc.comment, pc.created_at, pc.updated_at, pc.comment_by
+                    FROM news_posts_comments pc
+                    INNER JOIN users u ON pc.comment_by = u.id AND u.is_active = ?
+                    WHERE pc.news_post = p.id 
+                    ORDER BY pc.updated_at DESC 
+                    LIMIT 2
+                ) AS c 
+                
+            )
+        ) AS news_post
+                FROM news_posts p 
+                INNER JOIN users u ON
+                p.posted_by = u.id
+                LEFT JOIN reported_news_posts rnp ON
+                p.id = rnp.news_post AND
+                rnp.reported_by = ?
+            WHERE p.posted_by = ? AND p.is_active = ? AND u.is_active = ? AND rnp.news_post IS NULL
+        `
+
+        let postsValues = [true, true, !userId ? 0 : userId, true, !userId ? 0 : userId, true, true, true, true, true, true, !userId ? 0 : userId, !userId ? 0 : userId, true, true]
+        
+        if(search) {
+            postsSql+= ` AND p.title LIKE ?`
+            postsValues.push(`%${search}%`)
+        }
+        postsSql+= " GROUP BY p.id"
+        // IF order_by query string is not selected, api will be sent in desc order
+        if(!order_by) {
+            postsSql+= " ORDER BY p.created_at DESC"
+        }
+        if(order_by) {
+            // order_by will accept two values: created_at_asc or created_at_desc
+            if(order_by === 'created_at_asc') {
+                postsSql+= " ORDER BY p.created_at ASC"
+            }
+            // IF ANYTHING ELSE EXCEPT created_at_asc is provided, the result will be sent in descending order.
+            else {
+                postsSql+= " ORDER BY p.created_at DESC"
+            }
+        }
+        postsSql+= " LIMIT ? OFFSET ?"
+        postsValues.push(limit.toString(), offset.toString())
+
+        const [posts, _] = await db.execute(postsSql, postsValues)
+        
+        if(posts.length === 0) {
+            return {totalPostsCount, posts: false};
+        }
+        return {totalPostsCount, posts}
+    }
+
     static async updateById({toBeUpdatedFields, postId}) {
      
         const dateTime = getCurrentDateTime()
